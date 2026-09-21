@@ -1,0 +1,58 @@
+{
+  "_comment": "Skopiuj do config.json (instalator robi to automatycznie) i dostosuj. config.json jest w .gitignore.",
+  "wake": {
+    "microphone": "",
+    "_microphone": "Fragment nazwy mikrofonu z Windows, np. 'JBL'. Puste = mikrofon domyślny.",
+    "phrases": ["aha ja", "acha ja", "a ha ja"],
+    "_phrases": "Frazy wybudzenia. Mały model Vosk nie zna słowa 'achaja', więc szukamy fraz brzmiących podobnie. Dla innego imienia dobierz frazy ze słów, które model zna.",
+    "end": ["wykonaj"],
+    "cancel": ["anuluj"],
+    "clear": ["nowa rozmowa"],
+    "max_recording_seconds": 110,
+    "silence_stop_seconds": 17,
+    "auto_listen_after_question": true,
+    "end_match": 0.7,
+    "end_stable_seconds": 0.6,
+    "beep": true,
+    "debug": true
+  },
+  "achaja": {
+    "_comment": "Model i wysiłek głównej sesji. sonnet + low = szybkie odpowiedzi; opus + medium = wyższa jakość.",
+    "model": "sonnet",
+    "effort": "low"
+  },
+  "voice": {
+    "tts_voice": "pl-PL-ZofiaNeural",
+    "_tts_voice": "Głosy edge-tts, np. pl-PL-ZofiaNeural, pl-PL-MarekNeural, en-US-JennyNeural.",
+    "rate": "+15%",
+    "max_chars": 4000,
+    "outputs": {
+      "słuchawki": {"type": "local", "device": ""},
+      "głośnik": {"type": "cast", "name": "Nazwa głośnika", "host": "192.168.0.10"}
+    },
+    "_outputs": "type=local: 'device' to fragment nazwy wyjścia audio w Windows (puste = domyślne). type=cast: głośnik Google Cast/Home — nazwę i adres znajdziesz komendą: python .claude/scripts/output.py discover",
+    "default_output": "słuchawki",
+    "ack_phrases": ["Już sprawdzam.", "Pracuję nad tym.", "Chwileczkę, szukam odpowiedzi.", "Już się tym zajmuję."],
+    "working_phrases": ["Nadal pracuję.", "Jeszcze chwila, pracuję.", "Wciąż nad tym pracuję."],
+    "working_reminder_after_seconds": 30,
+    "working_reminder_every_seconds": 60,
+    "working_reminder_max_seconds": 900
+  },
+  "agents": {
+    "project_roots": ["C:\\projekty"],
+    "_project_roots": "Foldery, w których trzymasz projekty. Każdy podfolder = projekt z własnym agentem.",
+    "aliases": {"alias mówiony": "nazwa-folderu-projektu"},
+    "permission_mode": "auto",
+    "close_window_after_seconds": 300
+  },
+  "home_assistant": {
+    "_comment": "Opcjonalne. Wymaga integracji 'Model Context Protocol Server' w HA i tokenu w state/ha_token.txt.",
+    "url": "http://homeassistant.local:8123"
+  },
+  "tv": {
+    "_comment": "Opcjonalne. Telewizor z Androidem sterowany przez ADB (włącz na TV tryb programisty i debugowanie).",
+    "name": "TV",
+    "host": "192.168.0.20",
+    "port": 5555
+  }
+}

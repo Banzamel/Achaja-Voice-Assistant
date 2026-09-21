@@ -1,0 +1,7 @@
+vosk>=0.3.45
+sounddevice>=0.5
+edge-tts>=7.0
+soundfile>=0.13
+numpy>=2.0
+pychromecast>=14.0
+aiohttp>=3.10

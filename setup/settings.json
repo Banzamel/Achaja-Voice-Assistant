@@ -1,0 +1,46 @@
+{
+  "_comment": "Szablon ustawień sesji Achai. Instalator podmienia __PROJECT_DIR__ na ścieżkę projektu i zapisuje jako .claude/settings.json.",
+  "language": "polish",
+  "voice": {
+    "enabled": true,
+    "mode": "tap"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__PROJECT_DIR__/.venv/Scripts/python.exe",
+            "args": ["__PROJECT_DIR__/.claude/scripts/hook_event.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__PROJECT_DIR__/.venv/Scripts/python.exe",
+            "args": ["__PROJECT_DIR__/.claude/scripts/hook_stop.py"],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__PROJECT_DIR__/.venv/Scripts/python.exe",
+            "args": ["__PROJECT_DIR__/.claude/scripts/hook_event.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
