@@ -53,8 +53,8 @@ Klawisze trafiają wprost do bufora konsoli Claude Code (`WriteConsoleInputW`), 
 ## Instalacja
 
 ```powershell
-git clone https://github.com/<użytkownik>/achaja.git
-cd achaja
+git clone https://github.com/Banzamel/Achaja-Voice-Assistant.git
+cd Achaja-Voice-Assistant
 powershell -ExecutionPolicy Bypass -File install.ps1        # + opcje: -WithAdb -Autostart
 ```
 
