@@ -1,0 +1,12 @@
+{
+  "_comment": "Opcjonalne: Home Assistant jako serwer MCP. Skopiuj do .mcp.json, wstaw adres swojego HA. Token czytany jest ze state/ha_token.txt i podawany jako ${HA_TOKEN} przy starcie sesji.",
+  "mcpServers": {
+    "home-assistant": {
+      "type": "http",
+      "url": "http://homeassistant.local:8123/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${HA_TOKEN}"
+      }
+    }
+  }
+}
