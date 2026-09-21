@@ -160,6 +160,10 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 - Dictation requires a claude.ai account in Claude Code.
 - The small Vosk model confuses similar words — that's why control words are matched fuzzily while the prompt itself is transcribed by Claude.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md). Releases follow [Semantic Versioning](https://semver.org/).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
