@@ -1,55 +1,76 @@
 {
-  "_comment": "Skopiuj do config.json (instalator robi to automatycznie) i dostosuj. config.json jest w .gitignore.",
+  "_comment": "Skopiuj do config.json (robi to instalator) i dostosuj. config.json nie trafia do repozytorium. / Copy to config.json (the installer does it) and adjust; config.json is git-ignored.",
+
+  "language": "pl",
+  "_language": "Wybiera blok z sekcji 'languages': słowa sterujące, model mowy, głos i frazy potwierdzeń. / Picks a block from 'languages': control words, speech model, voice, acknowledgements.",
+
   "wake": {
-    "model": "vosk-model-small-pl-0.22",
-    "_model": "Folder modelu Vosk w models/ (albo pełna ścieżka). Inny język = inny model: alphacephei.com/vosk/models",
     "microphone": "",
-    "_microphone": "Fragment nazwy mikrofonu z Windows, np. 'JBL'. Puste = mikrofon domyślny.",
-    "phrases": ["aha ja", "acha ja", "a ha ja"],
-    "_phrases": "Frazy wybudzenia. Mały model Vosk nie zna słowa 'achaja', więc szukamy fraz brzmiących podobnie. Dla innego imienia dobierz frazy ze słów, które model zna.",
-    "end": ["wykonaj"],
-    "cancel": ["anuluj"],
-    "clear": ["nowa rozmowa"],
+    "_microphone": "Fragment nazwy mikrofonu z Windows, np. 'JBL'. Puste = domyślny. / Part of a Windows microphone name; empty = system default.",
     "max_recording_seconds": 110,
     "silence_stop_seconds": 17,
     "auto_listen_after_question": true,
     "end_match": 0.7,
+    "_end_match": "Jak bardzo usłyszane słowo musi przypominać słowo końcowe (0-1). / How close a heard word must be to the end word.",
     "end_stable_seconds": 0.6,
     "beep": true,
     "debug": true
   },
+
   "achaja": {
-    "_comment": "Model i wysiłek głównej sesji. sonnet + low = szybkie odpowiedzi; opus + medium = wyższa jakość.",
+    "_comment": "Model i wysiłek głównej sesji: sonnet+low = szybko, opus+medium = dokładniej. / Main session model and effort.",
     "model": "sonnet",
     "effort": "low"
   },
+
   "voice": {
-    "tts_voice": "pl-PL-ZofiaNeural",
-    "_tts_voice": "Głosy edge-tts, np. pl-PL-ZofiaNeural, pl-PL-MarekNeural, en-US-JennyNeural.",
     "rate": "+15%",
     "max_chars": 4000,
     "outputs": {
-      "słuchawki": {"type": "local", "device": "", "aliases": ["headphones", "sluchawki"]},
-      "głośnik": {"type": "cast", "name": "Nazwa głośnika", "host": "192.168.0.10", "aliases": ["speaker", "glosnik"]}
+      "headphones": {"type": "local", "device": "", "aliases": ["słuchawki", "sluchawki"]},
+      "speaker": {"type": "cast", "name": "Speaker name", "host": "192.168.0.10", "aliases": ["głośnik", "glosnik", "google home"]}
     },
-    "_outputs": "type=local: 'device' to fragment nazwy wyjścia audio w Windows (puste = domyślne). type=cast: głośnik Google Cast/Home — nazwę i adres znajdziesz komendą: python .claude/scripts/output.py discover",
-    "default_output": "słuchawki",
-    "ack_phrases": ["Już sprawdzam.", "Pracuję nad tym.", "Chwileczkę, szukam odpowiedzi.", "Już się tym zajmuję."],
-    "working_phrases": ["Nadal pracuję.", "Jeszcze chwila, pracuję.", "Wciąż nad tym pracuję."],
+    "_outputs": "type=local: 'device' to fragment nazwy wyjścia audio (puste = domyślne). type=cast: głośnik Google Cast — nazwę i adres znajdziesz komendą 'output.py discover'. / type=local: part of an output device name; type=cast: a Google Cast speaker (find it with 'output.py discover').",
+    "default_output": "headphones",
     "working_reminder_after_seconds": 30,
     "working_reminder_every_seconds": 60,
     "working_reminder_max_seconds": 900
   },
+
   "agents": {
     "project_roots": ["C:\\projekty"],
-    "_project_roots": "Foldery, w których trzymasz projekty. Każdy podfolder = projekt z własnym agentem.",
+    "_project_roots": "Foldery z projektami; każdy podfolder to projekt z własnym agentem. / Folders holding your projects.",
     "aliases": {"alias mówiony": "nazwa-folderu-projektu"},
     "permission_mode": "auto",
     "close_window_after_seconds": 300
   },
-  "home_assistant": {
-    "_comment": "Opcjonalne. Wymaga integracji 'Model Context Protocol Server' w HA i tokenu w state/ha_token.txt.",
-    "url": "http://homeassistant.local:8123"
-  }
 
+  "home_assistant": {
+    "_comment": "Opcjonalne: wymaga integracji MCP w Home Assistant i tokenu w state/ha_token.txt. / Optional: needs the HA MCP integration and a token in state/ha_token.txt.",
+    "url": "http://homeassistant.local:8123"
+  },
+
+  "languages": {
+    "_comment": "Słowa sterujące muszą być w słowniku modelu Vosk — imię własne nigdy nie jest rozpoznawane wprost, więc używamy fraz brzmiących podobnie ('Achaja' to 'aha ja' po polsku i 'a kaya' po angielsku). Modele: alphacephei.com/vosk/models / Control words must exist in the Vosk model's dictionary; a name is matched by a similar-sounding phrase.",
+    "pl": {
+      "model": "vosk-model-small-pl-0.22",
+      "phrases": ["aha ja", "acha ja", "a ha ja"],
+      "end": ["wykonaj"],
+      "cancel": ["anuluj"],
+      "clear": ["nowa rozmowa"],
+      "tts_voice": "pl-PL-ZofiaNeural",
+      "ack_phrases": ["Już sprawdzam.", "Pracuję nad tym.", "Chwileczkę, szukam odpowiedzi.", "Już się tym zajmuję."],
+      "working_phrases": ["Nadal pracuję.", "Jeszcze chwila, pracuję.", "Wciąż nad tym pracuję."]
+    },
+    "en": {
+      "model": "vosk-model-small-en-us-0.15",
+      "phrases": ["a kaya", "ah kaya", "aha ya"],
+      "end": ["execute"],
+      "cancel": ["cancel"],
+      "clear": ["new conversation"],
+      "tts_voice": "en-US-JennyNeural",
+      "ack_phrases": ["On it.", "Checking now.", "Give me a second.", "Working on it."],
+      "working_phrases": ["Still working.", "Almost there.", "Still on it."]
+    }
+  }
 }

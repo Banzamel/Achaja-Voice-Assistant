@@ -55,7 +55,7 @@ cd Achaja-Voice-Assistant
 powershell -ExecutionPolicy Bypass -File install.ps1 -Language en   # or -Language pl (default); add -Autostart
 ```
 
-The installer creates `.venv`, installs the dependencies, downloads the speech model (Vosk PL, ~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Language pl|en`, `-Autostart` (start on login), `-SkipModel`.
+The installer creates `.venv`, installs the dependencies, downloads the speech model (~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Language pl|en`, `-Autostart` (start on login), `-SkipModel`.
 
 Then:
 
@@ -65,17 +65,17 @@ Then:
 
 ### Language
 
-`install.ps1 -Language en|pl` picks a ready-made profile — it downloads the matching Vosk model, writes the matching `config.json`, sets the reply language and (for English) installs English assistant rules:
+There is **one** `config.json`. It carries a `language` key and a `languages` block with the control words, speech model, voice and acknowledgement phrases for each language. `install.ps1 -Language en|pl` sets that key, downloads the matching Vosk model, sets the reply language and (for English) installs the English assistant rules:
 
 | | `-Language pl` (default) | `-Language en` |
 |---|---|---|
-| Wake | „Achaja” (`aha ja`) | „hey computer”, „okay computer”, „hey jarvis” |
+| Wake | "Achaja" (heard as `aha ja`) | "Achaja" (heard as `a kaya`) |
 | Submit | „wykonaj” | „execute” |
 | Cancel / reset | „anuluj” / „nowa rozmowa” | „cancel” / „new conversation” |
 | Voice | `pl-PL-ZofiaNeural` | `en-US-JennyNeural` |
 | Spoken-summary marker | `[GŁOS]` | `[VOICE]` |
 
-Any other language works too: pick a model from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models), put its folder name in `wake.model`, and choose control words **the model actually knows** — an invented name is never recognized, so use a phrase that sounds like it (Polish "Achaja" is matched as `aha ja`). Then set `voice.tts_voice`, `language` in `.claude/settings.json`, and translate `.claude/CLAUDE.md`.
+Any other language works too: add a block to `languages` with a model from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models) and control words **the model actually knows** — an invented name is never recognized, so use a phrase that sounds like it (Polish "Achaja" is matched as `aha ja`). Set its `tts_voice` too, switch `language` in `.claude/settings.json`, and translate `.claude/CLAUDE.md`.
 
 Note that only the control words depend on this model. The prompt itself is transcribed by Claude Code, and Claude replies in the language you spoke.
 

@@ -24,9 +24,25 @@ CREATE_NO_WINDOW = 0x08000000
 DETACHED_PROCESS = 0x00000008
 
 
+WAKE_KEYS = ("model", "phrases", "end", "cancel", "clear")
+VOICE_KEYS = ("tts_voice", "ack_phrases", "working_phrases")
+
+
 def load_config():
-    with open(ROOT / "config.json", encoding="utf-8") as f:
-        return json.load(f)
+    """Konfiguracja z wbudowanym blokiem jezykowym.
+
+    Slowa sterujace, model Vosk i glos biora sie z languages[<language>];
+    wartosci wpisane wprost w "wake"/"voice" maja pierwszenstwo.
+    """
+    with open(ROOT / "config.json", encoding="utf-8-sig") as f:  # -sig: toleruje BOM z edytorow Windows
+        cfg = json.load(f)
+    block = cfg.get("languages", {}).get(cfg.get("language", "pl"), {})
+    for section, keys in (("wake", WAKE_KEYS), ("voice", VOICE_KEYS)):
+        target = cfg.setdefault(section, {})
+        for key in keys:
+            if key in block and key not in target:
+                target[key] = block[key]
+    return cfg
 
 
 def model_dir():

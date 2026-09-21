@@ -1,5 +1,4 @@
 {
-  "_comment": "Szablon ustawień sesji Achai. Instalator podmienia __PROJECT_DIR__ na ścieżkę projektu i zapisuje jako .claude/settings.json.",
   "language": "polish",
   "voice": {
     "enabled": true,

@@ -198,7 +198,12 @@ def cmd_run(args, cfg):
 def cmd_list(cfg):
     aliases = cfg["agents"].get("aliases", {})
     sessions = read_json(SESSIONS, {})
-    for name, path in all_projects(cfg).items():
+    projects = all_projects(cfg)
+    if not projects:
+        roots = ", ".join(cfg["agents"].get("project_roots", [])) or "(brak)"
+        print(f"Brak projektow. Ustaw agents.project_roots w config.json (teraz: {roots}).")
+        return
+    for name, path in projects.items():
         al = [a for a, t in aliases.items() if t == name]
         has_claude = (path / ".claude").is_dir() or (path / "CLAUDE.md").exists()
         print(f"{name:25} aliasy: {', '.join(al) or '-':25} .claude: {'tak' if has_claude else 'nie':4}"

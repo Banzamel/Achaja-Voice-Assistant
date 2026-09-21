@@ -1,4 +1,4 @@
-# Instalator Achai (Windows). Uruchom: prawy przycisk -> "Uruchom w programie PowerShell"
+﻿# Instalator Achai (Windows). Uruchom: prawy przycisk -> "Uruchom w programie PowerShell"
 # albo w terminalu:  powershell -ExecutionPolicy Bypass -File install.ps1
 # Wszystko lokalnie w folderze projektu - nic nie jest instalowane w systemie.
 [CmdletBinding()]
@@ -9,11 +9,8 @@ param(
     [switch]$Autostart         # skrót w autostarcie Windows / add a Windows startup shortcut
 )
 
-$profiles = @{
-    pl = @{ Model = "vosk-model-small-pl-0.22";    Config = "config.example.json";    Settings = "polish";  Rules = $null }
-    en = @{ Model = "vosk-model-small-en-us-0.15"; Config = "config.example.en.json"; Settings = "english"; Rules = "docs\CLAUDE.en.md" }
-}
-$profile_ = $profiles[$Language]
+$settingsLanguage = @{ pl = "polish"; en = "english" }[$Language]
+$rulesFile      = @{ pl = $null;   en = "docs\CLAUDE.en.md" }[$Language]
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
@@ -35,41 +32,48 @@ Write-Host "Instaluję biblioteki (requirements.txt)..."
 & $venvPython -m pip install --quiet --upgrade pip
 & $venvPython -m pip install --quiet -r (Join-Path $root "requirements.txt")
 
-# 3. Model rozpoznawania słów kluczowych (Vosk, offline, ~50 MB)
-$modelDir = Join-Path $root "models\$($profile_.Model)"
+# 3. Konfiguracja (jeden plik dla wszystkich języków; blok "languages" wybiera słowa i model)
+$config = Join-Path $root "config.json"
+if (-not (Test-Path $config)) {
+    Copy-Item (Join-Path $root "config.example.json") $config
+    Write-Host "Utworzono config.json - dostosuj mikrofon, foldery projektów i głośnik." -ForegroundColor Yellow
+}
+$configData = Get-Content $config -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($configData.language -ne $Language) {
+    $patched = (Get-Content $config -Raw -Encoding UTF8) -replace '"language": "\w+"', ("""language"": ""{0}""" -f $Language)
+    [IO.File]::WriteAllText($config, $patched, (New-Object Text.UTF8Encoding $false))   # bez BOM - czyta to Python
+    $configData = Get-Content $config -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+$modelName = $configData.languages.$Language.model
+
+# 4. Model rozpoznawania słów kluczowych (Vosk, offline, ~50 MB)
+$modelDir = Join-Path $root "models\$modelName"
 if (-not $SkipModel -and -not (Test-Path $modelDir)) {
-    Write-Host "Pobieram model mowy / downloading speech model ($($profile_.Model), ~50 MB)..."
+    Write-Host "Pobieram model mowy / downloading speech model ($modelName, ~50 MB)..."
     New-Item -ItemType Directory -Force (Join-Path $root "models") | Out-Null
     $zip = Join-Path $root "models\model.zip"
-    Invoke-WebRequest "https://alphacephei.com/vosk/models/$($profile_.Model).zip" -OutFile $zip -UseBasicParsing
+    Invoke-WebRequest "https://alphacephei.com/vosk/models/$modelName.zip" -OutFile $zip -UseBasicParsing
     Expand-Archive $zip -DestinationPath (Join-Path $root "models") -Force
     Remove-Item $zip
 }
 
-# 4. Konfiguracja
-$config = Join-Path $root "config.json"
-if (-not (Test-Path $config)) {
-    Copy-Item (Join-Path $root $profile_.Config) $config
-    Write-Host "Utworzono config.json ($Language) - dostosuj mikrofon, foldery projektów i głośnik." -ForegroundColor Yellow
-}
-
-# 4b. Zasady asystentki w wybranym języku (polski jest wersją domyślną w repozytorium)
-if ($profile_.Rules) {
-    Copy-Item (Join-Path $root $profile_.Rules) (Join-Path $root ".claude\CLAUDE.md") -Force
+# 5. Zasady asystentki w wybranym języku (polski jest wersją domyślną w repozytorium)
+if ($rulesFile) {
+    Copy-Item (Join-Path $root $rulesFile) (Join-Path $root ".claude\CLAUDE.md") -Force
     Write-Host "Ustawiono zasady asystentki w języku: $Language"
 }
 
-# 5. Ustawienia sesji Claude (hooki głosowe) z prawdziwą ścieżką projektu
+# 6. Ustawienia sesji Claude (hooki głosowe) z prawdziwą ścieżką projektu
 $settings = Join-Path $root ".claude\settings.json"
 if (-not (Test-Path $settings)) {
     $template = Get-Content (Join-Path $root "setup\settings.json") -Raw -Encoding UTF8
     $template = $template -replace '__PROJECT_DIR__', ($root -replace '\\', '/')
-    $template = $template -replace '"language": "polish"', ("""language"": ""{0}""" -f $profile_.Settings)
+    $template = $template -replace '"language": "polish"', ("""language"": ""{0}""" -f $settingsLanguage)
     [IO.File]::WriteAllText($settings, $template, (New-Object Text.UTF8Encoding $false))
     Write-Host "Utworzono .claude\settings.json (hooki odpowiedzi głosowej)."
 }
 
-# 6. Opcjonalnie: autostart
+# 7. Opcjonalnie: autostart
 if ($Autostart) {
     $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) "Achaja.lnk"
     $shell = New-Object -ComObject WScript.Shell
