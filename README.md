@@ -37,7 +37,6 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 - **Project agents** — "have the agent for <project> do X" starts a separate Claude Code session **inside that project's folder** (with its own `CLAUDE.md`, skills and settings), shows live progress in its own window, and returns a report that Achaja summarizes aloud.
 - **Audio outputs** — headphones or a Google Cast / Google Home speaker ("answer through the speaker").
 - **Home (optional)** — Home Assistant through its official MCP integration: lights, climate, covers, media, live state.
-- **TV (optional)** — Android TV over ADB: power, launching apps, opening a specific Netflix title, remote keys, screenshots.
 - **Windows audio tool** — assign a microphone or speaker to a single program (e.g. `claude.exe`) without changing the system default devices.
 
 ## Requirements
@@ -46,17 +45,17 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 - **[Claude Code](https://claude.com/claude-code)** signed in with a **claude.ai account** — dictation does not work with an API key or through Bedrock/Vertex.
 - **Python 3.11+** (the installer creates a project-local `.venv`).
 - A **microphone** and an audio output; an internet connection for speech synthesis (edge-tts).
-- Optional: Home Assistant 2025.2+ (the "Model Context Protocol Server" integration), an Android TV, a Google Cast speaker.
+- Optional: Home Assistant 2025.2+ (the "Model Context Protocol Server" integration), a Google Cast speaker.
 
 ## Install
 
 ```powershell
 git clone https://github.com/Banzamel/Achaja-Voice-Assistant.git
 cd Achaja-Voice-Assistant
-powershell -ExecutionPolicy Bypass -File install.ps1        # options: -WithAdb -Autostart
+powershell -ExecutionPolicy Bypass -File install.ps1 -Language en   # or -Language pl (default); add -Autostart
 ```
 
-The installer creates `.venv`, installs the dependencies, downloads the speech model (Vosk PL, ~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Autostart` (start on login), `-WithAdb` (Android tools for TV control), `-SkipModel`.
+The installer creates `.venv`, installs the dependencies, downloads the speech model (Vosk PL, ~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Language pl|en`, `-Autostart` (start on login), `-SkipModel`.
 
 Then:
 
@@ -64,7 +63,21 @@ Then:
 2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
 3. Run `start-achaja.cmd`. Two windows open: the listener and the Claude Code session named "Achaja".
 
-**Another name or another language?** The assistant ships configured for Polish. In `config.json` change `wake.phrases` (wake phrases), `wake.end` / `cancel` / `clear`, `voice.tts_voice` (an edge-tts voice), and set the reply language in `.claude/settings.json` (`"language"`). Vosk only knows words from its own dictionary, so for an unusual name pick a phrase that sounds similar (for "Achaja" the phrase `aha ja` works). Models for other languages: [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models). The assistant's rules live in `.claude/CLAUDE.md` and can be translated as well.
+### Language
+
+`install.ps1 -Language en|pl` picks a ready-made profile — it downloads the matching Vosk model, writes the matching `config.json`, sets the reply language and (for English) installs English assistant rules:
+
+| | `-Language pl` (default) | `-Language en` |
+|---|---|---|
+| Wake | „Achaja” (`aha ja`) | „hey computer”, „okay computer”, „hey jarvis” |
+| Submit | „wykonaj” | „execute” |
+| Cancel / reset | „anuluj” / „nowa rozmowa” | „cancel” / „new conversation” |
+| Voice | `pl-PL-ZofiaNeural` | `en-US-JennyNeural` |
+| Spoken-summary marker | `[GŁOS]` | `[VOICE]` |
+
+Any other language works too: pick a model from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models), put its folder name in `wake.model`, and choose control words **the model actually knows** — an invented name is never recognized, so use a phrase that sounds like it (Polish "Achaja" is matched as `aha ja`). Then set `voice.tts_voice`, `language` in `.claude/settings.json`, and translate `.claude/CLAUDE.md`.
+
+Note that only the control words depend on this model. The prompt itself is transcribed by Claude Code, and Claude replies in the language you spoke.
 
 ## Usage
 
@@ -77,7 +90,6 @@ Then:
 | wake word while Achaja is speaking | stops the speech and starts recording |
 | a question from Achaja | recording of your answer starts automatically |
 
-**Languages.** The *control words* (wake, end, cancel, clear) are recognized by the local Vosk model, so they work in the language of the model you install — the default build ships Polish. The *prompt itself* is transcribed by Claude Code (set `language` in `.claude/settings.json`) and Claude replies in the language you spoke, so commands like "open the calculator" or "turn on the light in the office" work out of the box. Audio outputs can carry `aliases` in `config.json`, e.g. `speaker` next to `głośnik`.
 
 Example commands:
 
@@ -111,15 +123,9 @@ Achaja ──► agent.py run <project> ──► claude -p  (cwd = the project 
 
 `setup/ha_areas.py` also helps tidy the home: `dump` lists areas and entities with no room assigned, `apply plan.json` assigns devices to areas — Assist then understands commands like "turn off the lights in the bedroom" much better.
 
-## Android TV (optional)
-
-1. On the TV: About → tap "Build" 7× → Developer options → **USB / network debugging**.
-2. Run `install.ps1 -WithAdb` (downloads `platform-tools` into the project folder).
-3. Fill in the `tv` section of `config.json`, then run `.venv\Scripts\python.exe .claude\scripts\tv.py connect` and accept the prompt on the TV.
-
 ## Configuration
 
-Everything lives in `config.json` (created from `config.example.json`): microphone, control words and their sensitivity, the model and effort of the Achaja session, voice and audio outputs, acknowledgement phrases, project folders and aliases, Home Assistant, TV. Most commonly tuned:
+Everything lives in `config.json` (created from `config.example.json`): microphone, control words and their sensitivity, the model and effort of the Achaja session, voice and audio outputs, acknowledgement phrases, project folders and aliases, Home Assistant. Most commonly tuned:
 
 | Key | Meaning |
 |---|---|

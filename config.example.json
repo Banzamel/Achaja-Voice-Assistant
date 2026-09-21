@@ -50,11 +50,6 @@
   "home_assistant": {
     "_comment": "Opcjonalne. Wymaga integracji 'Model Context Protocol Server' w HA i tokenu w state/ha_token.txt.",
     "url": "http://homeassistant.local:8123"
-  },
-  "tv": {
-    "_comment": "Opcjonalne. Telewizor z Androidem sterowany przez ADB (włącz na TV tryb programisty i debugowanie).",
-    "name": "TV",
-    "host": "192.168.0.20",
-    "port": 5555
   }
+
 }

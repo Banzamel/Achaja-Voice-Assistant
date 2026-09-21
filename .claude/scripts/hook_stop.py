@@ -13,7 +13,7 @@ import time
 from common import (CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHONW, SCRIPTS, STATE,
                     write_json)
 
-MARKER = re.compile(r"^\s*\[G[ŁL]OS\]\s*:?\s*", re.IGNORECASE | re.MULTILINE)
+MARKER = re.compile(r"^\s*\[(?:G[ŁL]OS|VOICE)\]\s*:?\s*", re.IGNORECASE | re.MULTILINE)
 
 
 def voice_text(message):
