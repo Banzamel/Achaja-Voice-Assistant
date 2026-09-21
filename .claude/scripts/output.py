@@ -15,7 +15,9 @@ from common import write_json
 
 
 def fold(s):
-    return "".join(c for c in unicodedata.normalize("NFKD", s.lower()) if not unicodedata.combining(c))
+    """Porownanie bez polskich znakow: 'glosnik' == 'głośnik' ('ł' nie rozklada sie w NFKD)."""
+    s = s.lower().replace("ł", "l")
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 
 def main():
@@ -28,7 +30,8 @@ def main():
     elif args[0] == "set":
         wanted = fold(args[1])
         name = next((n for n in outs if fold(n) == wanted or wanted in fold(n)
-                     or wanted in fold(outs[n].get("name", ""))), None)
+                     or wanted in fold(outs[n].get("name", ""))
+                     or any(fold(a) == wanted or wanted in fold(a) for a in outs[n].get("aliases", []))), None)
         if not name:
             sys.exit(f"Nie ma wyjscia '{args[1]}'. Dostepne: {', '.join(outs)}")
         write_json(OUTPUT_FILE, {"output": name, "once": "--once" in args})

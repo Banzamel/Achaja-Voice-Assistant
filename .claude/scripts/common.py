@@ -10,7 +10,7 @@ STATE = ROOT / "state"
 AGENTS_STATE = STATE / "agents"
 PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 PYTHONW = ROOT / ".venv" / "Scripts" / "pythonw.exe"
-MODEL_DIR = ROOT / "models" / "vosk-model-small-pl-0.22"
+DEFAULT_MODEL = "vosk-model-small-pl-0.22"
 
 STATE.mkdir(exist_ok=True)
 AGENTS_STATE.mkdir(exist_ok=True)
@@ -27,6 +27,14 @@ DETACHED_PROCESS = 0x00000008
 def load_config():
     with open(ROOT / "config.json", encoding="utf-8") as f:
         return json.load(f)
+
+
+def model_dir():
+    """Model Vosk: nazwa folderu w models/ albo pelna sciezka (config.json: wake.model)."""
+    from pathlib import Path as _Path
+    name = load_config()["wake"].get("model") or DEFAULT_MODEL
+    path = _Path(name)
+    return path if path.is_absolute() else ROOT / "models" / name
 
 
 def read_json(path, default):

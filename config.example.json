@@ -1,6 +1,8 @@
 {
   "_comment": "Skopiuj do config.json (instalator robi to automatycznie) i dostosuj. config.json jest w .gitignore.",
   "wake": {
+    "model": "vosk-model-small-pl-0.22",
+    "_model": "Folder modelu Vosk w models/ (albo pełna ścieżka). Inny język = inny model: alphacephei.com/vosk/models",
     "microphone": "",
     "_microphone": "Fragment nazwy mikrofonu z Windows, np. 'JBL'. Puste = mikrofon domyślny.",
     "phrases": ["aha ja", "acha ja", "a ha ja"],
@@ -27,8 +29,8 @@
     "rate": "+15%",
     "max_chars": 4000,
     "outputs": {
-      "słuchawki": {"type": "local", "device": ""},
-      "głośnik": {"type": "cast", "name": "Nazwa głośnika", "host": "192.168.0.10"}
+      "słuchawki": {"type": "local", "device": "", "aliases": ["headphones", "sluchawki"]},
+      "głośnik": {"type": "cast", "name": "Nazwa głośnika", "host": "192.168.0.10", "aliases": ["speaker", "glosnik"]}
     },
     "_outputs": "type=local: 'device' to fragment nazwy wyjścia audio w Windows (puste = domyślne). type=cast: głośnik Google Cast/Home — nazwę i adres znajdziesz komendą: python .claude/scripts/output.py discover",
     "default_output": "słuchawki",

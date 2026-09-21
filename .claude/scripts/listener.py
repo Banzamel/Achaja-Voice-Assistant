@@ -23,18 +23,15 @@ import time
 import winsound
 
 from audio_out import request_stop
-from common import (CREATE_NEW_CONSOLE, CREATE_NO_WINDOW, DETACHED_PROCESS, MODEL_DIR, PYTHON, PYTHONW, ROOT,
-                    SCRIPTS, STATE, clean_env, load_config, pick_device, pid_alive, process_name, read_json,
+from common import (CREATE_NEW_CONSOLE, CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHON, PYTHONW, ROOT,
+                    SCRIPTS, STATE, clean_env, load_config, model_dir, pick_device, pid_alive, process_name, read_json,
                     single_instance, write_json)
 
 IDLE, RECORDING = "czekam na 'Achaja'", "NAGRYWAM ('wykonaj' / 'anuluj' / 'nowa rozmowa')"
 
 
 def log(msg):
-    line = f"{time.strftime('%H:%M:%S')} {msg}"
-    print(line, flush=True)
-    with open(STATE / "listener.log", "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    print(f"{time.strftime('%H:%M:%S')} {msg}", flush=True)
 
 
 def inject(pid, *keys):
@@ -176,7 +173,7 @@ def main():
     clear = cfg["wake"].get("clear", [])
 
     vosk.SetLogLevel(-1)
-    model = vosk.Model(str(MODEL_DIR))
+    model = vosk.Model(str(model_dir()))
     # wybudzenie: gramatyka ograniczona (model nie zna slowa "achaja"), szybkie wyniki czastkowe
     wake_rec = vosk.KaldiRecognizer(model, 16000, json.dumps(wake + ["[unk]"], ensure_ascii=False))
     # w trakcie nagrywania: pelny slownik i tylko zakonczone wypowiedzi - mniej falszywych trafien

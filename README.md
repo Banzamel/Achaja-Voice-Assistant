@@ -1,7 +1,5 @@
 # Achaja — control Claude Code with your voice
 
-*[Wersja polska](README.pl.md)*
-
 **Achaja** turns [Claude Code](https://claude.com/claude-code) into a hands-free voice assistant. Say the wake word, dictate your prompt, finish with the end word — the prompt submits itself and the answer is spoken back through your headphones or a speaker. Achaja runs commands on your PC, **delegates work to agents in your own projects**, and can control your home through Home Assistant.
 
 ---
@@ -79,6 +77,8 @@ Then:
 | wake word while Achaja is speaking | stops the speech and starts recording |
 | a question from Achaja | recording of your answer starts automatically |
 
+**Languages.** The *control words* (wake, end, cancel, clear) are recognized by the local Vosk model, so they work in the language of the model you install — the default build ships Polish. The *prompt itself* is transcribed by Claude Code (set `language` in `.claude/settings.json`) and Claude replies in the language you spoke, so commands like "open the calculator" or "turn on the light in the office" work out of the box. Audio outputs can carry `aliases` in `config.json`, e.g. `speaker` next to `głośnik`.
+
 Example commands:
 
 - "open the calculator and add the square roots of two and three"
@@ -140,9 +140,9 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 
 | Symptom | What to check |
 |---|---|
-| No beep after the wake word | `state\listener.log` — the `czuwanie:` (idle) entries; tune `wake.phrases` |
+| No beep after the wake word | watch the listener window — its `czuwanie:` (idle) lines show what was heard; tune `wake.phrases` |
 | Beep works but Claude doesn't record | the prompt input must be empty; Claude Code must be in `voice tap` mode |
-| The end word doesn't submit | the log shows what the listener heard — lower `wake.end_match` |
+| The end word doesn't submit | the listener window shows what it heard — lower `wake.end_match` |
 | The prompt submits too early | raise `wake.end_match` or `wake.end_stable_seconds` |
 | No speech is heard | `voice.outputs`, `state\speak_error.txt`; with Bluetooth headsets pick the "headset" (HFP) output |
 | An agent doesn't answer | the "Agent: …" window, `state\agents\<project>.log` |
