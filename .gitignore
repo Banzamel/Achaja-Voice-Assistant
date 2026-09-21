@@ -1,0 +1,14 @@
+# środowisko i dane lokalne (nic z tego nie trafia do repozytorium)
+.venv/
+models/
+state/
+tools/
+__pycache__/
+*.pyc
+
+# konfiguracja i sekrety użytkownika
+config.json
+.mcp.json
+.claude/settings.json
+.claude/settings.local.json
+.claude/CLAUDE.local.md
