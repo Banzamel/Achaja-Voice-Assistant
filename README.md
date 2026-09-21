@@ -1,161 +1,161 @@
-# Achaja — steruj Claude Code głosem
+# Achaja — control Claude Code with your voice
 
-**Achaja** zamienia [Claude Code](https://claude.com/claude-code) w asystenta głosowego, który działa bez klawiatury. Mówisz słowo wybudzenia, dyktujesz polecenie, kończysz słowem „wykonaj” — prompt wysyła się sam, a odpowiedź słyszysz w słuchawkach lub na głośniku. Achaja wykonuje polecenia na komputerze, **zleca pracę agentom Twoich projektów** i potrafi sterować domem przez Home Assistant.
+*[Wersja polska](README.pl.md)*
 
-> **English summary:** Achaja turns Claude Code into a hands-free voice assistant on Windows. A small offline model (Vosk) listens only for control words; the prompt itself is transcribed by Claude Code's built-in dictation, so quality stays high. Answers are spoken back (edge-tts) through your headphones or a Google Cast speaker. Achaja can also delegate work to per-project Claude agents (each running in its own project folder with its own `CLAUDE.md`), control Home Assistant devices over MCP, and drive an Android TV over ADB. The assistant's prompts and docs are in Polish, but wake words, voices and rules are configurable for any language supported by Claude Code dictation and edge-tts.
+**Achaja** turns [Claude Code](https://claude.com/claude-code) into a hands-free voice assistant. Say the wake word, dictate your prompt, finish with the end word — the prompt submits itself and the answer is spoken back through your headphones or a speaker. Achaja runs commands on your PC, **delegates work to agents in your own projects**, and can control your home through Home Assistant.
 
 ---
 
-## Jak to działa
+## How it works
 
 ```
-[mikrofon] --- nasłuch słowa wybudzenia (Vosk, offline, tylko słowa kluczowe)
+[microphone] --- wake-word listener (Vosk, offline, control words only)
      │
-     ├─► naciska spację w oknie Claude Code  → dyktowanie Claude zapisuje prompt
+     ├─► presses Space in the Claude Code window → Claude's dictation writes the prompt
      │
-     └─► po słowie „wykonaj” naciska spację ponownie → prompt wysyła się sam
+     └─► after the end word, presses Space again → the prompt submits itself
                      │
                      ▼
-        Claude Code (sesja „Achaja”)
-         ├─ wykonuje polecenia na komputerze
-         ├─ zleca zadania agentom projektów (osobne sesje claude)
-         └─ steruje domem (Home Assistant przez MCP), telewizorem (ADB)
+        Claude Code (the "Achaja" session)
+         ├─ runs commands on the computer
+         ├─ delegates tasks to project agents (separate claude sessions)
+         └─ controls the home (Home Assistant over MCP) and a TV (ADB)
                      │
                      ▼
-        hook Stop → sekcja [GŁOS] z odpowiedzi → mowa (edge-tts)
-                     → słuchawki albo głośnik Google Cast
+        Stop hook → [GŁOS] section of the answer → speech (edge-tts)
+                     → headphones or a Google Cast speaker
 ```
 
-Kluczowa decyzja projektowa: **treść promptu rozpoznaje Claude Code**, a nie lokalny model. Mały model offline wychwytuje wyłącznie kilka słów sterujących, dzięki czemu jakość dyktowania pozostaje taka, jak w Claude Code, a nasłuch nie wysyła niczego do sieci.
+The key design decision: **the prompt itself is transcribed by Claude Code**, not by a local model. The small offline model only picks up a handful of control words, so dictation quality stays exactly as good as Claude Code's, and the listener sends nothing to the network.
 
-Klawisze trafiają wprost do bufora konsoli Claude Code (`WriteConsoleInputW`), więc **okno nie musi mieć fokusu** — możesz pracować na komputerze w trakcie.
+Keystrokes are written straight into the Claude Code console input buffer (`WriteConsoleInputW`), so **the window does not need focus** — you can keep working while Achaja listens.
 
-## Funkcje
+## Features
 
-- **Sterowanie głosem bez rąk** — słowo wybudzenia, dyktowanie, słowo końcowe, automatyczne wysłanie.
-- **Odpowiedź głosowa** — Claude kończy każdą odpowiedź krótkim podsumowaniem w sekcji `[GŁOS]`, które jest czytane na głos.
-- **Tryb rozmowy** — gdy odpowiedź kończy się pytaniem, nagrywanie Twojej odpowiedzi włącza się samo.
-- **Potwierdzenia** — „Już sprawdzam” zaraz po wysłaniu i „Nadal pracuję” przy dłuższych zadaniach.
-- **Agenci projektów** — „niech agent od <projekt> zrobi…” uruchamia osobną sesję Claude Code **w folderze tego projektu** (z jego `CLAUDE.md`, skillami i ustawieniami), pokazuje postęp w osobnym oknie i zwraca raport, który Achaja streszcza głosem.
-- **Wyjścia audio** — słuchawki albo głośnik Google Cast / Google Home („odpowiadaj przez głośnik”).
-- **Dom (opcjonalnie)** — Home Assistant przez oficjalną integrację MCP: światła, klimatyzacja, rolety, multimedia, stan domu.
-- **Telewizor (opcjonalnie)** — Android TV przez ADB: włączanie, uruchamianie aplikacji, Netflix z konkretnym tytułem, klawisze pilota, zrzut ekranu.
-- **Narzędzie audio dla Windows** — przypisanie mikrofonu lub głośnika do jednego programu (np. `claude.exe`) bez zmiany urządzeń domyślnych w systemie.
+- **Hands-free control** — wake word, dictation, end word, automatic submit.
+- **Spoken answers** — Claude ends every reply with a short summary in a `[GŁOS]` ("voice") section, which is read aloud.
+- **Conversation mode** — when the answer ends with a question, recording of your reply starts automatically.
+- **Acknowledgements** — "I'm on it" right after submit, and "still working" during longer tasks.
+- **Project agents** — "have the agent for <project> do X" starts a separate Claude Code session **inside that project's folder** (with its own `CLAUDE.md`, skills and settings), shows live progress in its own window, and returns a report that Achaja summarizes aloud.
+- **Audio outputs** — headphones or a Google Cast / Google Home speaker ("answer through the speaker").
+- **Home (optional)** — Home Assistant through its official MCP integration: lights, climate, covers, media, live state.
+- **TV (optional)** — Android TV over ADB: power, launching apps, opening a specific Netflix title, remote keys, screenshots.
+- **Windows audio tool** — assign a microphone or speaker to a single program (e.g. `claude.exe`) without changing the system default devices.
 
-## Wymagania
+## Requirements
 
-- **Windows 10/11** (mechanizm wpisywania klawiszy korzysta z API konsoli Windows).
-- **[Claude Code](https://claude.com/claude-code)** zalogowany **kontem claude.ai** — dyktowanie nie działa z kluczem API ani przez Bedrock/Vertex.
-- **Python 3.11+** (instalator tworzy własne `.venv` w folderze projektu).
-- **Mikrofon** i wyjście audio; dla mowy syntetycznej połączenie z internetem (edge-tts).
-- Opcjonalnie: Home Assistant 2025.2+ (integracja „Model Context Protocol Server”), telewizor z Androidem, głośnik Google Cast.
+- **Windows 10/11** (keystroke injection and per-app audio routing use Windows APIs).
+- **[Claude Code](https://claude.com/claude-code)** signed in with a **claude.ai account** — dictation does not work with an API key or through Bedrock/Vertex.
+- **Python 3.11+** (the installer creates a project-local `.venv`).
+- A **microphone** and an audio output; an internet connection for speech synthesis (edge-tts).
+- Optional: Home Assistant 2025.2+ (the "Model Context Protocol Server" integration), an Android TV, a Google Cast speaker.
 
-## Instalacja
+## Install
 
 ```powershell
 git clone https://github.com/Banzamel/Achaja-Voice-Assistant.git
 cd Achaja-Voice-Assistant
-powershell -ExecutionPolicy Bypass -File install.ps1        # + opcje: -WithAdb -Autostart
+powershell -ExecutionPolicy Bypass -File install.ps1        # options: -WithAdb -Autostart
 ```
 
-Instalator tworzy `.venv`, instaluje biblioteki, pobiera model mowy (Vosk PL, ~50 MB), tworzy `config.json` z szablonu i generuje `.claude/settings.json` z hookami. Opcje: `-Autostart` (uruchamianie po zalogowaniu), `-WithAdb` (narzędzia Android do sterowania TV), `-SkipModel`.
+The installer creates `.venv`, installs the dependencies, downloads the speech model (Vosk PL, ~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Autostart` (start on login), `-WithAdb` (Android tools for TV control), `-SkipModel`.
 
-Następnie:
+Then:
 
-1. Otwórz `config.json` i ustaw przynajmniej `wake.microphone` oraz `agents.project_roots` (foldery z Twoimi projektami).
-2. Sprawdź nazwy urządzeń audio: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
-3. Uruchom `start-achaja.cmd`. Otworzą się dwa okna: nasłuch i sesja Claude Code „Achaja”.
+1. Open `config.json` and set at least `wake.microphone` and `agents.project_roots` (the folders holding your projects).
+2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
+3. Run `start-achaja.cmd`. Two windows open: the listener and the Claude Code session named "Achaja".
 
-**Inne imię asystentki lub inny język?** W `config.json` zmień `wake.phrases` (frazy wybudzenia), `wake.end` / `cancel` / `clear`, `voice.tts_voice` (głos edge-tts) oraz język odpowiedzi w `.claude/settings.json` (`"language"`). Model Vosk zna tylko słowa ze swojego słownika — dla nietypowego imienia dobierz frazę brzmiącą podobnie (dla „Achaja” działa `aha ja`). Modele dla innych języków: [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models).
+**Another name or another language?** The assistant ships configured for Polish. In `config.json` change `wake.phrases` (wake phrases), `wake.end` / `cancel` / `clear`, `voice.tts_voice` (an edge-tts voice), and set the reply language in `.claude/settings.json` (`"language"`). Vosk only knows words from its own dictionary, so for an unusual name pick a phrase that sounds similar (for "Achaja" the phrase `aha ja` works). Models for other languages: [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models). The assistant's rules live in `.claude/CLAUDE.md` and can be translated as well.
 
-## Użycie
+## Usage
 
-| Mówisz | Co się dzieje |
+| You say | What happens |
 |---|---|
-| **„Achaja”** → *piknięcie* | Claude Code zaczyna nagrywać prompt |
-| treść polecenia… **„wykonaj”** + chwila ciszy | prompt wysłany; Achaja potwierdza: „Już sprawdzam” |
-| **„anuluj”** | nagranie odrzucone |
-| **„nowa rozmowa”** | czysty kontekst (`/clear`) |
-| „Achaja”, gdy Achaja mówi | przerywa mowę i zaczyna nagrywanie |
-| pytanie od Achai | nagrywanie odpowiedzi włącza się samo (tryb rozmowy) |
+| **wake word** → *beep* | Claude Code starts recording your prompt |
+| your command… **end word** + a short pause | prompt submitted; Achaja confirms: "I'm on it" |
+| **"cancel"** | the recording is discarded |
+| **"new conversation"** | clears the context (`/clear`) |
+| wake word while Achaja is speaking | stops the speech and starts recording |
+| a question from Achaja | recording of your answer starts automatically |
 
-Przykłady poleceń:
+Example commands:
 
-- „uruchom kalkulator i dodaj pierwiastek z dwóch i z trzech”
-- „sprawdź w internecie, ile kosztuje…”
-- „niech agent od **vision** sprawdzi, czemu nie działa logowanie”
-- „co robią agenci?”, „co zrobił agent od taxi?”, „przerwij agenta vision”
-- „odpowiadaj przez głośnik”, „wróć na słuchawki”
-- „włącz światło w gabinecie”, „ustaw klimatyzację na 22 stopnie” (Home Assistant)
+- "open the calculator and add the square roots of two and three"
+- "look up how much X costs"
+- "have the agent for **vision** check why login is broken"
+- "what are the agents doing?", "what did the taxi agent do?", "stop the vision agent"
+- "answer through the speaker", "back to headphones"
+- "turn on the light in the office", "set the AC to 22 degrees" (Home Assistant)
 
-## Agenci projektów
+## Project agents
 
 ```
-Achaja ──► agent.py run <projekt> ──► claude -p  (cwd = folder projektu)
-                                        │  własny .claude/CLAUDE.md, skille, uprawnienia
-                                        ├─ okno „Agent: <projekt>” z postępem na żywo
-                                        └─ raport → Achaja streszcza głosem
+Achaja ──► agent.py run <project> ──► claude -p  (cwd = the project folder)
+                                        │  its own .claude/CLAUDE.md, skills, permissions
+                                        ├─ an "Agent: <project>" window with live progress
+                                        └─ report → Achaja summarizes it aloud
 ```
 
-- Nazwy projektów dopasowywane są rozmyto (dyktowanie je przekręca) plus aliasy z `config.json`.
-- Każdy projekt ma własną, ciągłą rozmowę (`--resume`); `--new` zaczyna od zera.
-- Agenci działają w trybie uprawnień `auto`; akcje ryzykowne są blokowane i wracają do Ciebie jako pytanie.
-- Polecenia: `run`, `status`, `last <projekt>`, `stop <projekt>`, `list`.
+- Project names are matched fuzzily (dictation mangles them) plus aliases from `config.json`.
+- Each project keeps a continuous conversation (`--resume`); `--new` starts over.
+- Agents run in the `auto` permission mode; risky actions are blocked and come back to you as a question.
+- Commands: `run`, `status`, `last <project>`, `stop <project>`, `list`.
 
-## Home Assistant (opcjonalnie)
+## Home Assistant (optional)
 
-1. W HA dodaj integrację **Model Context Protocol Server** (sterowanie: Assist).
-2. Utwórz token długoterminowy i zapisz go w `state/ha_token.txt` (plik jest w `.gitignore`).
-3. Skopiuj `.mcp.example.json` → `.mcp.json` i wpisz adres swojego HA. Token trafia do sesji jako `${HA_TOKEN}` i nie jest zapisywany w żadnym pliku konfiguracyjnym.
-4. W HA udostępnij Asystentowi te urządzenia, którymi Achaja ma sterować (Ustawienia → Asystenci głosowi → Udostępnij).
+1. In HA add the **Model Context Protocol Server** integration (control: Assist).
+2. Create a long-lived access token and save it to `state/ha_token.txt` (the folder is git-ignored).
+3. Copy `.mcp.example.json` → `.mcp.json` and set your HA address. The token reaches the session as `${HA_TOKEN}` and is never stored in a config file.
+4. In HA expose the devices Achaja may control (Settings → Voice assistants → Expose).
 
-Dodatkowo `setup/ha_areas.py` pomaga uporządkować dom: `dump` pokazuje obszary i encje bez przypisanego pokoju, `apply plan.json` przypisuje urządzenia do obszarów (Assist lepiej rozumie polecenia typu „zgaś światła w sypialni”).
+`setup/ha_areas.py` also helps tidy the home: `dump` lists areas and entities with no room assigned, `apply plan.json` assigns devices to areas — Assist then understands commands like "turn off the lights in the bedroom" much better.
 
-## Telewizor z Androidem (opcjonalnie)
+## Android TV (optional)
 
-1. Na telewizorze: Informacje → 7× „Kompilacja” → Opcje programisty → **Debugowanie USB / przez sieć**.
-2. `install.ps1 -WithAdb` (pobiera `platform-tools` do folderu projektu).
-3. W `config.json` uzupełnij sekcję `tv`, a potem `.venv\Scripts\python.exe .claude\scripts\tv.py connect` i zatwierdź pytanie na ekranie TV.
+1. On the TV: About → tap "Build" 7× → Developer options → **USB / network debugging**.
+2. Run `install.ps1 -WithAdb` (downloads `platform-tools` into the project folder).
+3. Fill in the `tv` section of `config.json`, then run `.venv\Scripts\python.exe .claude\scripts\tv.py connect` and accept the prompt on the TV.
 
-## Konfiguracja
+## Configuration
 
-Wszystko jest w `config.json` (tworzonym z `config.example.json`): mikrofon, słowa sterujące i ich czułość, model i wysiłek sesji Achai, głos i wyjścia audio, frazy potwierdzeń, foldery projektów i aliasy, Home Assistant, telewizor. Najczęściej strojone:
+Everything lives in `config.json` (created from `config.example.json`): microphone, control words and their sensitivity, the model and effort of the Achaja session, voice and audio outputs, acknowledgement phrases, project folders and aliases, Home Assistant, TV. Most commonly tuned:
 
-| Klucz | Znaczenie |
+| Key | Meaning |
 |---|---|
-| `wake.end_match`, `wake.end_stable_seconds` | czułość i opóźnienie słowa końcowego |
-| `wake.auto_listen_after_question` | tryb rozmowy |
-| `achaja.model`, `achaja.effort` | szybkość vs jakość odpowiedzi |
-| `voice.outputs`, `voice.default_output` | słuchawki, głośnik Cast |
-| `voice.ack_phrases`, `voice.working_phrases` | potwierdzenia i przypomnienia |
+| `wake.end_match`, `wake.end_stable_seconds` | end-word sensitivity and delay |
+| `wake.auto_listen_after_question` | conversation mode |
+| `achaja.model`, `achaja.effort` | speed vs. quality of answers |
+| `voice.outputs`, `voice.default_output` | headphones, Cast speaker |
+| `voice.ack_phrases`, `voice.working_phrases` | acknowledgements and reminders |
 
-## Prywatność i bezpieczeństwo
+## Privacy and safety
 
-- Nasłuch słów kluczowych działa **offline** (Vosk). Dźwięk promptu trafia do Claude Code (dyktowanie), a tekst mowy syntetycznej do usługi edge-tts.
-- `config.json`, `.mcp.json`, `state/` (tokeny, logi, transkrypcje robocze) i `.claude/settings*.json` są w `.gitignore` — nie publikuj ich.
-- Achaja pyta głosem o zgodę przed akcjami nieodwracalnymi (git push, deploy, usuwanie danych, zamki i alarmy w domu).
-- Nasłuch wpisuje klawisze wyłącznie do konsoli wskazanej sesji Claude Code.
+- Wake-word listening runs **offline** (Vosk). Prompt audio goes to Claude Code's dictation service, and the spoken text to edge-tts.
+- `config.json`, `.mcp.json`, `state/` (tokens, logs, working transcripts) and `.claude/settings*.json` are git-ignored — don't publish them.
+- Achaja asks out loud before irreversible or outward-facing actions (git push, deploys, deleting data, locks and alarms at home).
+- The listener writes keystrokes only into the console of the Claude Code session it manages.
 
-## Rozwiązywanie problemów
+## Troubleshooting
 
-| Objaw | Co sprawdzić |
+| Symptom | What to check |
 |---|---|
-| Brak piknięcia po słowie wybudzenia | `state\listener.log` — wpisy `czuwanie:`; dobierz `wake.phrases` |
-| Piknięcie jest, ale Claude nie nagrywa | pole promptu musi być puste; tryb `voice tap` w Claude Code |
-| Słowo końcowe nie wysyła promptu | log pokazuje, co usłyszał nasłuch — obniż `wake.end_match` |
-| Prompt wysyła się za wcześnie | podnieś `wake.end_match` lub `wake.end_stable_seconds` |
-| Nie słychać odpowiedzi | `voice.outputs`, `state\speak_error.txt`; przy słuchawkach Bluetooth wybierz wyjście „zestaw słuchawkowy” (profil HFP) |
-| Agent nie odpowiada | okno „Agent: …”, `state\agents\<projekt>.log` |
+| No beep after the wake word | `state\listener.log` — the `czuwanie:` (idle) entries; tune `wake.phrases` |
+| Beep works but Claude doesn't record | the prompt input must be empty; Claude Code must be in `voice tap` mode |
+| The end word doesn't submit | the log shows what the listener heard — lower `wake.end_match` |
+| The prompt submits too early | raise `wake.end_match` or `wake.end_stable_seconds` |
+| No speech is heard | `voice.outputs`, `state\speak_error.txt`; with Bluetooth headsets pick the "headset" (HFP) output |
+| An agent doesn't answer | the "Agent: …" window, `state\agents\<project>.log` |
 
-## Ograniczenia
+## Limitations
 
-- Tylko Windows (wstrzykiwanie klawiszy i wybór urządzeń audio per program korzystają z API Windows).
-- Ekran nie może być zablokowany (wygaszony monitor nie przeszkadza).
-- Dyktowanie wymaga konta claude.ai w Claude Code.
-- Mały model Vosk myli podobne słowa — dlatego słowa sterujące są dopasowywane rozmyto, a treść promptu rozpoznaje Claude.
+- Windows only (keystroke injection and per-app audio routing use Windows APIs).
+- The screen must not be locked (a sleeping monitor is fine).
+- Dictation requires a claude.ai account in Claude Code.
+- The small Vosk model confuses similar words — that's why control words are matched fuzzily while the prompt itself is transcribed by Claude.
 
-## Licencja
+## License
 
-MIT — patrz [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
-Pull requesty mile widziane: obsługa innych systemów, inne silniki mowy, nowe satelity głosowe.
+Pull requests welcome: other operating systems, other speech engines, new voice satellites.
