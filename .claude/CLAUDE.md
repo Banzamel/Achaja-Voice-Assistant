@@ -80,6 +80,6 @@ Gdy użytkownik chce pracy nad projektem („niech agent od X poprawi…”, „
 ## Struktura projektu
 - `config.json` — słowa kluczowe, głos, wyjścia audio, foldery projektów, aliasy, opcjonalnie Home Assistant i konta pocztowe (plik lokalny, nie trafia do repozytorium).
 - `.claude/scripts/` — `listener.py` (nasłuch), `inject.py` (klawisze do konsoli), `speak.py` + `audio_out.py` (mowa), `output.py` (wybór wyjścia), `hook_*.py` (hooki), `agent.py` + `agent_view.py` (agenci projektów), `mail.py` + `mail_watch.py` (poczta).
-- `setup/` — `configure.py` (formularz ustawień w przeglądarce: mikrofon, głośnik, projekty, konta pocztowe, Home Assistant; „otwórz ustawienia” → `Start-Process ".venv\Scripts\pythonw.exe" "setup\configure.py"`), `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), `installer.iss` + `build-installer.ps1` (instalator .exe), szablon ustawień.
+- `setup/` — `configure.py` (okienkowy kreator ustawień krok po kroku: mikrofon, głośnik, projekty, konta pocztowe, Home Assistant; „otwórz ustawienia” → `Start-Process ".venv\Scripts\pythonw.exe" "setup\configure.py"`), `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), `installer.iss` + `build-installer.ps1` + `assets/` (instalator .exe, ikona i grafika), szablon ustawień.
 - `state/` — pliki robocze (sesje agentów, logi, tokeny); nie publikuj ich.
 - Python z `.venv` — nie instaluj pakietów globalnie, tylko do `.venv` (`.venv\Scripts\python.exe -m pip install ...`).

@@ -7,10 +7,10 @@ param(
     [ValidateSet("pl", "en")]
     [string]$Language = "pl",  # język słów sterujących i odpowiedzi / control-word and reply language
     [string]$Python = "",      # interpreter do utworzenia .venv (domyślnie python z PATH) / interpreter for .venv
-    [string]$Modules = "voice,agents,mail,ha",  # moduły w formularzu konfiguracji / modules shown in the setup form
+    [string]$Modules = "voice,agents,mail,ha",  # moduły w oknie ustawień / modules shown in the settings window
     [switch]$SkipModel,        # pomiń pobieranie modelu Vosk / skip the Vosk model download
     [switch]$Autostart,        # skrót w autostarcie Windows / add a Windows startup shortcut
-    [switch]$NoConfigure       # nie otwieraj formularza konfiguracji / don't open the setup form
+    [switch]$NoConfigure       # nie otwieraj okna ustawień / don't open the settings window
 )
 
 $settingsLanguage = @{ pl = "polish"; en = "english" }[$Language]
@@ -95,14 +95,14 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Host "  Zainstaluj go: https://claude.com/claude-code  i zaloguj się kontem claude.ai." -ForegroundColor Yellow
 }
 
-# 8. Formularz konfiguracji w przeglądarce (mikrofon, głośnik, projekty, poczta, Home Assistant)
+# 8. Okienkowy kreator ustawień krok po kroku (mikrofon, głośnik, projekty, poczta, Home Assistant)
 if (-not $NoConfigure) {
     Write-Host ""
-    Write-Host "Otwieram formularz konfiguracji w przeglądarce - zapisz go, aby zakończyć."
+    Write-Host "Otwieram okno ustawień - przejdź kroki i kliknij Zapisz."
     & $venvPython (Join-Path $root "setup\configure.py") --modules $Modules
 }
 
 Write-Host ""
 Write-Host "Gotowe." -ForegroundColor Green
 Write-Host "  Start: start-achaja.cmd, potem powiedz słowo wybudzenia."
-Write-Host "  Zmiana ustawień później: .venv\Scripts\python.exe setup\configure.py"
+Write-Host "  Zmiana ustawień później: menu Start > Achaja - ustawienia (albo .venv\Scripts\python.exe setup\configure.py)"

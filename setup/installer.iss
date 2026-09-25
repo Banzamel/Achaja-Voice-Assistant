@@ -1,7 +1,7 @@
 ﻿; Instalator Achai (Inno Setup 6). Budowanie: setup\build-installer.ps1 (lokalnie albo w GitHub Actions).
 ; Pliki projektu i przenośny Python przygotowuje skrypt budujący w build\app i build\runtime.
 ; Po skopiowaniu plików instalator uruchamia install.ps1 (biblioteki, model mowy, hooki),
-; a ten otwiera formularz konfiguracji w przeglądarce z modułami wybranymi w kreatorze.
+; a ten otwiera okienkowy kreator ustawień (setup\configure.py) z modułami wybranymi w kreatorze.
 ; Instalacja bez okien: AchajaSetup.exe /SILENT /COMPONENTS="voice,mail" /noconfigure=1
 
 #ifndef AppVersion
@@ -18,6 +18,7 @@ AppPublisherURL=https://github.com/Banzamel/Achaja-Voice-Assistant
 AppSupportURL=https://github.com/Banzamel/Achaja-Voice-Assistant/issues
 DefaultDirName={localappdata}\Programs\Achaja
 DisableProgramGroupPage=yes
+DisableDirPage=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -26,6 +27,10 @@ OutputBaseFilename=AchajaSetup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=assets\achaja.ico
+UninstallDisplayIcon={app}\setup\assets\achaja.ico
+WizardImageFile=assets\wizard.bmp,assets\wizard@2x.bmp
+WizardSmallImageFile=assets\wizard-small.bmp,assets\wizard-small@2x.bmp
 ShowLanguageDialog=yes
 UninstallDisplayName=Achaja
 CloseApplications=no
@@ -55,13 +60,15 @@ pl.TaskDesktop=Skrót na pulpicie
 en.TaskDesktop=Desktop shortcut
 pl.ConfigName=Achaja - ustawienia
 en.ConfigName=Achaja - settings
-pl.Installing=Instaluję biblioteki, model mowy i otwieram formularz ustawień...
-en.Installing=Installing libraries and the speech model, then opening the settings form...
+pl.Installing=Instaluję biblioteki i model mowy, potem otworzy się okno ustawień...
+en.Installing=Installing libraries and the speech model, then the settings window opens...
 pl.SetupFailed=Instalacja składników nie powiodła się (kod %1). Sprawdź połączenie z internetem i uruchom instalator ponownie.
 en.SetupFailed=Installing components failed (code %1). Check the internet connection and run the installer again.
 pl.NoClaude=Nie znaleziono Claude Code (polecenie „claude”).%n%nAchaja działa w Claude Code: zainstaluj go ze strony claude.com/claude-code i zaloguj się kontem claude.ai (dyktowanie wymaga konta).%n%nMożesz kontynuować instalację i doinstalować Claude Code później.
 en.NoClaude=Claude Code (the "claude" command) was not found.%n%nAchaja runs inside Claude Code: install it from claude.com/claude-code and sign in with a claude.ai account (dictation needs one).%n%nYou can continue and install Claude Code later.
 pl.LaunchNow=Uruchom Achaję
+pl.DeleteData=Usunąć także Twoje ustawienia i dane Achai (konfiguracja, konta pocztowe, token Home Assistant, historia)?%n%nWybierz „Nie”, jeśli zamierzasz zainstalować Achaję ponownie w tym folderze.
+en.DeleteData=Also delete your Achaja settings and data (configuration, mail accounts, Home Assistant token, history)?%n%nChoose "No" if you plan to reinstall Achaja into this folder.
 en.LaunchNow=Start Achaja
 
 [Types]
@@ -84,10 +91,10 @@ Source: "..\build\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 Source: "..\build\runtime\*"; DestDir: "{app}\runtime"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"
-Name: "{autoprograms}\{cm:ConfigName}"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\setup\configure.py"""; WorkingDir: "{app}"
-Name: "{autodesktop}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; Tasks: desktopicon
-Name: "{userstartup}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; Flags: runminimized; Tasks: autostart
+Name: "{autoprograms}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
+Name: "{autoprograms}\{cm:ConfigName}"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\setup\configure.py"""; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
+Name: "{autodesktop}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Tasks: desktopicon
+Name: "{userstartup}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Flags: runminimized; Tasks: autostart
 
 [Run]
 Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; Description: "{cm:LaunchNow}"; Flags: postinstall nowait skipifsilent shellexec
@@ -99,11 +106,10 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Com
 Type: filesandordirs; Name: "{app}\.venv"
 Type: filesandordirs; Name: "{app}\runtime"
 Type: filesandordirs; Name: "{app}\models"
-Type: filesandordirs; Name: "{app}\state"
-Type: filesandordirs; Name: "{app}\.claude"
+Type: files; Name: "{app}\.claude\settings.json"
+Type: filesandordirs; Name: "{app}\.claude\scripts\__pycache__"
 Type: filesandordirs; Name: "{app}\setup\__pycache__"
-Type: files; Name: "{app}\config.json"
-Type: files; Name: "{app}\.mcp.json"
+; config.json, state\, .mcp.json i ustawienia lokalne usuwa CurUninstallStepChanged - tylko na życzenie
 
 [Code]
 function StopCommand(Param: String): String;
@@ -155,4 +161,22 @@ begin
     Params := Params + ' -NoConfigure';
   if not Exec('powershell.exe', Params, ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, Code) or (Code <> 0) then
     MsgBox(FmtMessage(CustomMessage('SetupFailed'), [IntToStr(Code)]), mbError, MB_OK);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  App: String;
+begin
+  { dane użytkownika zostają, chyba że wprost poprosi o ich usunięcie }
+  if CurUninstallStep <> usPostUninstall then Exit;
+  if UninstallSilent() then Exit;
+  if MsgBox(CustomMessage('DeleteData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) <> IDYES then Exit;
+  App := ExpandConstant('{app}');
+  DelTree(App + '\state', True, True, True);
+  DeleteFile(App + '\config.json');
+  DeleteFile(App + '\.mcp.json');
+  DeleteFile(App + '\.claude\settings.local.json');
+  DeleteFile(App + '\.claude\CLAUDE.local.md');
+  RemoveDir(App + '\.claude');
+  RemoveDir(App);
 end;

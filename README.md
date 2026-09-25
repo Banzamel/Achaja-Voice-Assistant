@@ -56,8 +56,8 @@ Download `AchajaSetup-<version>.exe` from [Releases](https://github.com/Banzamel
 
 - asks for the language and lets you pick the **modules** — voice assistant (required), project agents, mail, Home Assistant — and whether Achaja starts with Windows;
 - installs for the current user only (no administrator rights) into `%LOCALAPPDATA%\Programs\Achaja`, with its own portable Python — nothing is installed system-wide;
-- downloads the libraries and the speech model, then opens a **settings form** in your browser: microphone and speakers (from a list of your devices), Google Cast speaker search, project folders, mail accounts with a *Test* button, Home Assistant address and token;
-- adds "Achaja" and "Achaja – settings" to the Start menu and a normal uninstaller to *Apps & features*.
+- lets you choose the install folder, downloads the libraries and the speech model, then opens a **step-by-step settings window**: general, voice (microphone and output picked from your devices, Google Cast speaker search), project folders (folder picker), mail accounts (add / edit / *Test*) and mail rules, Home Assistant address and token, summary;
+- adds "Achaja" and "Achaja – settings" to the Start menu and a normal uninstaller to *Apps & features* (it asks whether to keep your settings and data).
 
 The file is not code-signed, so Windows SmartScreen shows a warning on the first run (*More info → Run anyway*). Unattended install: `AchajaSetup.exe /SILENT /COMPONENTS="voice,mail" /noconfigure=1`.
 
@@ -69,11 +69,11 @@ cd Achaja-Voice-Assistant
 powershell -ExecutionPolicy Bypass -File install.ps1 -Language en   # or -Language pl (default); add -Autostart
 ```
 
-The script creates `.venv`, installs the dependencies, downloads the speech model (~50 MB), creates `config.json` and `.claude/settings.json` with the voice hooks, and opens the same settings form. Options: `-Language pl|en`, `-Modules voice,agents,mail,ha`, `-Autostart`, `-SkipModel`, `-NoConfigure`, `-Python <path>`.
+The script creates `.venv`, installs the dependencies, downloads the speech model (~50 MB), creates `config.json` and `.claude/settings.json` with the voice hooks, and opens the same settings window. Options: `-Language pl|en`, `-Modules voice,agents,mail,ha`, `-Autostart`, `-SkipModel`, `-NoConfigure`, `-Python <path>`.
 
 Then:
 
-1. Change settings any time with the form: `.venv\Scripts\python.exe setup\configure.py` (or edit `config.json` directly).
+1. Change settings any time: Start menu → *Achaja – settings*, or `.venv\Scripts\python.exe setup\configure.py` (or edit `config.json` directly).
 2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
 3. Run `start-achaja.cmd`. Two windows open: the listener and the Claude Code session named "Achaja".
 
@@ -149,7 +149,7 @@ IMAP server ──IDLE──► mail_watch.py (background, one connection per ac
                            the rest as numbers ("I removed 30 ads and 2 spam messages"); also at digest_at times
 ```
 
-1. Add the accounts in the settings form (or in `mail.accounts` in `config.json` — an array: host, port, `security` ssl/starttls, user, password; any shared setting can be overridden per account) and turn mail on.
+1. Add the accounts in the settings window (or in `mail.accounts` in `config.json` — an array: host, port, `security` ssl/starttls, user, password; any shared setting can be overridden per account) and turn mail on.
 2. Check the connection: `.venv\Scripts\python.exe .claude\scripts\mail.py test`.
 3. Start Achaja (the watcher starts with it) or run `mail.py start`.
 

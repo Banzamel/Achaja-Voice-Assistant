@@ -1,25 +1,20 @@
-"""Konfigurator Achai: formularz w przegladarce do uzupelnienia config.json (tylko ten komputer).
+"""Ustawienia Achai: okienkowy kreator krok po kroku (instalator uruchamia go na koncu, pozniej menu Start).
 
 Uzycie:
-  configure.py                              wszystkie moduly
+  configure.py                                  wszystkie moduly
   configure.py --modules voice,agents,mail,ha   tylko wybrane (instalator podaje wybrane skladniki)
-  configure.py --no-browser                 nie otwiera przegladarki (adres wypisuje w konsoli)
 
+Kroki: ogolne, glos, agenci, poczta (konta i zasady), Home Assistant, podsumowanie.
 Zapisuje: config.json, state/ha_token.txt, .mcp.json i .claude/settings.local.json (Home Assistant).
-Hasla i token nie wracaja do przegladarki - puste pole przy zapisie oznacza "bez zmian".
-Serwer slucha tylko na 127.0.0.1 i wymaga losowego klucza z adresu strony.
+Hasla i token nie sa wyswietlane - puste pole przy zapisie oznacza "bez zmian".
 """
 import argparse
 import json
-import secrets
 import shutil
 import subprocess
 import sys
 import threading
-import time
 import urllib.request
-import webbrowser
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -244,232 +239,544 @@ def restart_mail(cfg):
                        capture_output=True, creationflags=common.CREATE_NO_WINDOW)
 
 
-def make_handler(key, modules, server_ref):
-    last_ping = {"at": time.time()}
+# ---------- okna ----------
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args):
-            pass
+TEXT = {
+    "pl": {
+        "title": "Achaja — ustawienia", "back": "< Wstecz", "next": "Dalej >", "save": "Zapisz", "cancel": "Anuluj",
+        "step": "Krok {} z {}",
+        "general": "Ogólne", "general_sub": "Język asystentki oraz model, na którym pracuje Achaja.",
+        "language": "Język", "model": "Model Achai", "effort": "Wysiłek (szybkość / dokładność)",
+        "voice": "Głos i mikrofon", "voice_sub": "Mikrofon do słowa wybudzenia i wyjście, na którym Achaja mówi.",
+        "mic": "Mikrofon", "out": "Wyjście głosu (lokalne)", "rate": "Tempo mowy (np. +15%)", "default_dev": "(domyślne systemowe)",
+        "cast": "Mów także przez głośnik Google Cast / Google Home", "cast_name": "Nazwa głośnika", "cast_host": "Adres IP głośnika",
+        "cast_find": "Szukaj głośników w sieci", "cast_default": "Domyślnie mów przez głośnik", "searching": "Szukam…",
+        "none_found": "Nie znaleziono głośników.", "found": "Znaleziono: {}",
+        "agents": "Agenci projektów", "agents_sub": "Foldery z Twoimi projektami — każdy podfolder to projekt, któremu Achaja może zlecić pracę.",
+        "add_folder": "Dodaj folder…", "remove": "Usuń",
+        "mail": "Poczta — konta", "mail_sub": "Achaja pilnuje skrzynek IMAP: usuwa reklamy, spam i phishing, a o ważnych mailach mówi na głos.",
+        "mail_on": "Włącz nasłuch poczty", "add": "Dodaj…", "edit": "Edytuj…", "test": "Testuj",
+        "col_name": "Nazwa", "col_user": "Adres", "col_host": "Serwer",
+        "rules": "Poczta — zasady", "rules_sub": "Co jest dla Ciebie ważne i kiedy Achaja ma o tym mówić.",
+        "hint": "Co jest ważne (własnymi słowami)", "important": "Zawsze ważni nadawcy (adresy lub @domeny, po przecinku)",
+        "ignored": "Pomijani nadawcy", "quiet": "Godziny ciszy (np. 22:00-07:00)", "digest": "Raport o godzinach (np. 09:00, 18:00)",
+        "delete": "Usuwaj z serwera po (dniach)", "announce": "Mów na głos o:",
+        "c_important": "ważnych", "c_threat": "zagrożeniach", "c_ad": "reklamach", "c_spam": "spamie",
+        "ha": "Home Assistant", "ha_sub": "Sterowanie domem przez integrację „Model Context Protocol Server” i token długoterminowy.",
+        "ha_on": "Włącz Home Assistant", "ha_url": "Adres Home Assistant", "ha_token": "Token (puste = bez zmian)",
+        "summary": "Podsumowanie", "summary_sub": "Sprawdź i zapisz. Ustawienia zmienisz później w menu Start: „Achaja – ustawienia”.",
+        "acc_title": "Konto pocztowe", "acc_name": "Nazwa konta", "acc_user": "Adres / login", "acc_pass": "Hasło (puste = bez zmian)",
+        "acc_host": "Serwer", "acc_port": "Port", "acc_sec": "Szyfrowanie", "acc_display": "Twoje imię w odpowiedziach",
+        "acc_sig": "Podpis", "ok": "OK", "testing": "Sprawdzam…", "need_host": "Podaj serwer i adres.",
+        "saved": "Zapisano ustawienia.", "save_error": "Nie udało się zapisać: {}", "sum_accounts": "konta pocztowe: {}",
+        "sum_mail_off": "poczta: wyłączona", "sum_roots": "foldery projektów: {}", "sum_ha": "Home Assistant: {}",
+        "sum_mic": "mikrofon: {}", "sum_out": "wyjście: {}", "sum_cast": "głośnik: {}", "off": "wyłączony",
+    },
+    "en": {
+        "title": "Achaja — settings", "back": "< Back", "next": "Next >", "save": "Save", "cancel": "Cancel",
+        "step": "Step {} of {}",
+        "general": "General", "general_sub": "The assistant's language and the model Achaja runs on.",
+        "language": "Language", "model": "Achaja model", "effort": "Effort (speed / accuracy)",
+        "voice": "Voice and microphone", "voice_sub": "The microphone for the wake word and the output Achaja speaks on.",
+        "mic": "Microphone", "out": "Voice output (local)", "rate": "Speech rate (e.g. +15%)", "default_dev": "(system default)",
+        "cast": "Also speak through a Google Cast / Google Home speaker", "cast_name": "Speaker name", "cast_host": "Speaker IP address",
+        "cast_find": "Find speakers on the network", "cast_default": "Speak through the speaker by default", "searching": "Searching…",
+        "none_found": "No speakers found.", "found": "Found: {}",
+        "agents": "Project agents", "agents_sub": "Folders holding your projects — every subfolder is a project Achaja can hand work to.",
+        "add_folder": "Add folder…", "remove": "Remove",
+        "mail": "Mail — accounts", "mail_sub": "Achaja watches IMAP mailboxes: removes ads, spam and phishing, and announces important mail aloud.",
+        "mail_on": "Enable the mail watcher", "add": "Add…", "edit": "Edit…", "test": "Test",
+        "col_name": "Name", "col_user": "Address", "col_host": "Server",
+        "rules": "Mail — rules", "rules_sub": "What matters to you and when Achaja should speak about it.",
+        "hint": "What is important (in your own words)", "important": "Always important senders (addresses or @domains, comma separated)",
+        "ignored": "Ignored senders", "quiet": "Quiet hours (e.g. 22:00-07:00)", "digest": "Report at (e.g. 09:00, 18:00)",
+        "delete": "Delete from the server after (days)", "announce": "Speak about:",
+        "c_important": "important", "c_threat": "threats", "c_ad": "ads", "c_spam": "spam",
+        "ha": "Home Assistant", "ha_sub": "Home control through the “Model Context Protocol Server” integration and a long-lived token.",
+        "ha_on": "Enable Home Assistant", "ha_url": "Home Assistant address", "ha_token": "Token (empty = unchanged)",
+        "summary": "Summary", "summary_sub": "Check and save. Change settings later from the Start menu: “Achaja – settings”.",
+        "acc_title": "Mail account", "acc_name": "Account name", "acc_user": "Address / login", "acc_pass": "Password (empty = unchanged)",
+        "acc_host": "Server", "acc_port": "Port", "acc_sec": "Encryption", "acc_display": "Your name in replies",
+        "acc_sig": "Signature", "ok": "OK", "testing": "Checking…", "need_host": "Enter the server and the address.",
+        "saved": "Settings saved.", "save_error": "Could not save: {}", "sum_accounts": "mail accounts: {}",
+        "sum_mail_off": "mail: off", "sum_roots": "project folders: {}", "sum_ha": "Home Assistant: {}",
+        "sum_mic": "microphone: {}", "sum_out": "output: {}", "sum_cast": "speaker: {}", "off": "off",
+    },
+}
+ACCENT = "#6c4cd4"
 
-        def send(self, code, body, ctype="application/json"):
-            data = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode("utf-8")
-            self.send_response(code)
-            self.send_header("Content-Type", f"{ctype}; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(data)
 
-        def authorized(self):
-            return self.headers.get("X-Achaja-Key") == key
+class Wizard:
+    def __init__(self, modules):
+        import tkinter as tk
+        from tkinter import ttk
+        self.tk, self.ttk = tk, ttk
+        self.modules = modules
+        self.state = state_for_form(modules)
+        self.lang = self.state["language"] if self.state["language"] in TEXT else "en"
+        self.t = TEXT[self.lang]
+        self.accounts = [dict(a, password="") for a in self.state["mail"]["accounts"]]
+        self.saved = False
 
-        def do_GET(self):
-            if self.path == f"/?k={key}":
-                return self.send(200, PAGE.encode("utf-8"), "text/html")
-            if not self.authorized():
-                return self.send(403, {"error": "forbidden"})
-            last_ping["at"] = time.time()
-            if self.path == "/api/state":
-                return self.send(200, state_for_form(modules))
-            if self.path == "/api/cast":
-                return self.send(200, discover_cast())
-            if self.path == "/api/ping":
-                return self.send(200, {"ok": True})
-            self.send(404, {"error": "not found"})
+        self.root = root = tk.Tk()
+        root.title(self.t["title"])
+        root.geometry("700x540")
+        root.minsize(620, 500)
+        icon = ROOT / "setup" / "assets" / "achaja.ico"
+        if icon.exists():
+            root.iconbitmap(str(icon))
+        style = ttk.Style()
+        if "vista" in style.theme_names():
+            style.theme_use("vista")
+        style.configure("Head.TFrame", background="white")
+        style.configure("Head.TLabel", background="white")
+        style.configure("Title.TLabel", background="white", font=("Segoe UI", 13, "bold"))
+        style.configure("Sub.TLabel", background="white", foreground="#555", font=("Segoe UI", 9))
+        style.configure("Step.TLabel", foreground="#777")
 
-        def do_POST(self):
-            if not self.authorized():
-                return self.send(403, {"error": "forbidden"})
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-            if self.path == "/api/test-mail":
-                return self.send(200, test_mail(body))
-            if self.path == "/api/test-ha":
-                return self.send(200, test_ha(body.get("url", ""), body.get("token", "")))
-            if self.path in ("/api/save", "/api/quit"):
-                if self.path == "/api/save":
-                    try:
-                        cfg = apply_form(body, modules)
-                        restart_mail(cfg)
-                    except Exception as exc:
-                        return self.send(200, {"ok": False, "error": f"{type(exc).__name__}: {exc}"})
-                self.send(200, {"ok": True})
-                threading.Timer(0.5, server_ref[0].shutdown).start()
+        head = ttk.Frame(root, style="Head.TFrame", padding=(18, 12))
+        head.pack(fill="x")
+        logo = ROOT / "setup" / "assets" / "achaja.png"
+        if logo.exists():
+            img = tk.PhotoImage(file=str(logo)).subsample(5)
+            self._logo = img
+            ttk.Label(head, image=img, style="Head.TLabel").pack(side="right")
+        self.title_lbl = ttk.Label(head, style="Title.TLabel")
+        self.title_lbl.pack(anchor="w")
+        self.sub_lbl = ttk.Label(head, style="Sub.TLabel", wraplength=560, justify="left")
+        self.sub_lbl.pack(anchor="w", pady=(2, 0))
+        ttk.Separator(root).pack(fill="x")
+
+        self.body = ttk.Frame(root, padding=(22, 16))
+        self.body.pack(fill="both", expand=True)
+        ttk.Separator(root).pack(fill="x")
+        nav = ttk.Frame(root, padding=(14, 10))
+        nav.pack(fill="x")
+        self.step_lbl = ttk.Label(nav, style="Step.TLabel")
+        self.step_lbl.pack(side="left")
+        ttk.Button(nav, text=self.t["cancel"], command=root.destroy).pack(side="right")
+        self.next_btn = ttk.Button(nav, text=self.t["next"], command=self.next)
+        self.next_btn.pack(side="right", padx=(0, 8))
+        self.back_btn = ttk.Button(nav, text=self.t["back"], command=self.back)
+        self.back_btn.pack(side="right", padx=(0, 4))
+
+        self.vars()
+        self.pages = [("general", self.page_general)]
+        if "voice" in modules:
+            self.pages.append(("voice", self.page_voice))
+        if "agents" in modules:
+            self.pages.append(("agents", self.page_agents))
+        if "mail" in modules:
+            self.pages += [("mail", self.page_mail), ("rules", self.page_rules)]
+        if "ha" in modules:
+            self.pages.append(("ha", self.page_ha))
+        self.pages.append(("summary", self.page_summary))
+        self.index = 0
+        self.show()
+
+    # --- dane ---
+    def vars(self):
+        tk, s = self.tk, self.state
+        v, m, h = s["voice"], s["mail"], s["ha"]
+        self.v = {
+            "language": tk.StringVar(value=s["language"]),
+            "model": tk.StringVar(value=s["achaja"].get("model", "sonnet")),
+            "effort": tk.StringVar(value=s["achaja"].get("effort", "low")),
+            "mic": tk.StringVar(value=self.match(v["microphone"], s["devices"]["input"])),
+            "out": tk.StringVar(value=self.match(v["local_device"], s["devices"]["output"])),
+            "rate": tk.StringVar(value=v["rate"]),
+            "cast_on": tk.BooleanVar(value=v["cast"]["enabled"]),
+            "cast_name": tk.StringVar(value=v["cast"]["name"]),
+            "cast_host": tk.StringVar(value=v["cast"]["host"]),
+            "cast_default": tk.BooleanVar(value=v["default"] == "cast"),
+            "mail_on": tk.BooleanVar(value=m["enabled"] or not m["accounts"]),
+            "important": tk.StringVar(value=m["important_senders"]),
+            "ignored": tk.StringVar(value=m["ignored_senders"]),
+            "quiet": tk.StringVar(value=m.get("quiet_hours") or ""),
+            "digest": tk.StringVar(value=m["digest_at"]),
+            "delete": tk.StringVar(value=str(m.get("delete_after_days", 7))),
+            "ha_on": tk.BooleanVar(value=h["enabled"]),
+            "ha_url": tk.StringVar(value=h["url"]),
+            "ha_token": tk.StringVar(),
+        }
+        self.announce = {c: tk.BooleanVar(value=c in m["announce"]) for c in ("important", "threat", "ad", "spam")}
+        self.hint_text = m.get("important_hint") or ""
+        self.roots = list(s["agents"]["project_roots"])
+
+    def match(self, wanted, names):
+        if not wanted:
+            return self.t["default_dev"]
+        return next((n for n in names if wanted.lower() in n.lower()), wanted)
+
+    def device(self, value):
+        return "" if value == self.t["default_dev"] else value
+
+    # --- nawigacja ---
+    def show(self):
+        for w in self.body.winfo_children():
+            w.destroy()
+        key, build = self.pages[self.index]
+        self.title_lbl.configure(text=self.t[key])
+        self.sub_lbl.configure(text=self.t[f"{key}_sub"])
+        self.step_lbl.configure(text=self.t["step"].format(self.index + 1, len(self.pages)))
+        self.back_btn.state(["disabled"] if self.index == 0 else ["!disabled"])
+        self.next_btn.configure(text=self.t["save"] if key == "summary" else self.t["next"])
+        page = self.ttk.Frame(self.body)  # swieza ramka: ustawienia siatki nie przechodza miedzy stronami
+        page.pack(fill="both", expand=True)
+        build(page)
+
+    def collect_page(self):
+        if hasattr(self, "hint_widget") and self.hint_widget.winfo_exists():
+            self.hint_text = self.hint_widget.get("1.0", "end").strip()
+
+    def next(self):
+        self.collect_page()
+        if self.pages[self.index][0] == "summary":
+            return self.save()
+        self.index += 1
+        self.show()
+
+    def back(self):
+        self.collect_page()
+        self.index = max(0, self.index - 1)
+        self.show()
+
+    # --- pomocnicze ---
+    def field(self, parent, label, var, row, width=40, show=None, values=None, col=0):
+        ttk = self.ttk
+        ttk.Label(parent, text=label).grid(row=row, column=col, sticky="w", pady=(0, 2))
+        if values is not None:
+            w = ttk.Combobox(parent, textvariable=var, values=values, width=width)
+        else:
+            w = ttk.Entry(parent, textvariable=var, width=width, show=show)
+        w.grid(row=row + 1, column=col, sticky="we", pady=(0, 10), padx=(0, 12))
+        return w
+
+    def run_bg(self, work, done):
+        """Test/wyszukiwanie w tle, zeby okno nie zamarzalo."""
+        result = {}
+
+        def worker():
+            try:
+                result["value"] = work()
+            except Exception as exc:
+                result["value"] = [(False, f"{type(exc).__name__}: {exc}")]
+
+        th = threading.Thread(target=worker, daemon=True)
+        th.start()
+
+        def poll():
+            if th.is_alive():
+                self.root.after(150, poll)
+            else:
+                done(result.get("value"))
+        poll()
+
+    @staticmethod
+    def results_text(results):
+        return "\n".join(("✓ " if ok else "✗ ") + text for ok, text in results or [])
+
+    # --- strony ---
+    def page_general(self, p):
+        p.columnconfigure(0, weight=1)
+        self.field(p, self.t["language"], self.v["language"], 0, values=["pl", "en"], width=20)
+        self.field(p, self.t["model"], self.v["model"], 2, values=["sonnet", "opus", "haiku"], width=20)
+        self.field(p, self.t["effort"], self.v["effort"], 4, values=["low", "medium", "high"], width=20)
+
+    def page_voice(self, p):
+        ttk, dev = self.ttk, self.state["devices"]
+        p.columnconfigure(0, weight=1)
+        p.columnconfigure(1, weight=1)
+        self.field(p, self.t["mic"], self.v["mic"], 0, values=[self.t["default_dev"]] + dev["input"])
+        self.field(p, self.t["out"], self.v["out"], 0, values=[self.t["default_dev"]] + dev["output"], col=1)
+        self.field(p, self.t["rate"], self.v["rate"], 2, width=12)
+        box = ttk.Frame(p)
+        box.grid(row=4, column=0, columnspan=2, sticky="we", pady=(6, 0))
+        box.columnconfigure(0, weight=1)
+        box.columnconfigure(1, weight=1)
+        inner = ttk.Frame(box)
+
+        def toggle():
+            if self.v["cast_on"].get():
+                inner.grid(row=1, column=0, columnspan=2, sticky="we", pady=(8, 0))
+            else:
+                inner.grid_remove()
+        ttk.Checkbutton(box, text=self.t["cast"], variable=self.v["cast_on"], command=toggle).grid(row=0, column=0, sticky="w")
+        inner.columnconfigure(0, weight=1)
+        inner.columnconfigure(1, weight=1)
+        self.field(inner, self.t["cast_name"], self.v["cast_name"], 0)
+        self.field(inner, self.t["cast_host"], self.v["cast_host"], 0, col=1)
+        ttk.Checkbutton(inner, text=self.t["cast_default"], variable=self.v["cast_default"]).grid(row=2, column=0, sticky="w")
+        status = ttk.Label(inner, foreground="#555")
+        status.grid(row=3, column=1, sticky="w")
+
+        def find():
+            status.configure(text=self.t["searching"])
+            btn.state(["disabled"])
+
+            def done(found):
+                btn.state(["!disabled"])
+                if not found:
+                    status.configure(text=self.t["none_found"])
+                    return
+                first = found[0]
+                self.v["cast_name"].set(first["name"])
+                self.v["cast_host"].set(first["host"])
+                status.configure(text=self.t["found"].format(", ".join(f"{c['name']} ({c['host']})" for c in found)))
+            self.run_bg(discover_cast, done)
+        btn = ttk.Button(inner, text=self.t["cast_find"], command=find)
+        btn.grid(row=3, column=0, sticky="w", pady=(8, 0))
+        toggle()
+
+    def page_agents(self, p):
+        ttk, tk = self.ttk, self.tk
+        from tkinter import filedialog
+        p.columnconfigure(0, weight=1)
+        p.rowconfigure(0, weight=1)
+        lb = tk.Listbox(p, height=10, activestyle="none", borderwidth=1, relief="solid", highlightthickness=0)
+        lb.grid(row=0, column=0, sticky="nsew")
+        for r in self.roots:
+            lb.insert("end", r)
+        side = ttk.Frame(p)
+        side.grid(row=0, column=1, sticky="n", padx=(10, 0))
+
+        def add():
+            path = filedialog.askdirectory(parent=self.root, mustexist=True)
+            if path:
+                path = str(Path(path))
+                if path not in self.roots:
+                    self.roots.append(path)
+                    lb.insert("end", path)
+
+        def remove():
+            for i in reversed(lb.curselection()):
+                self.roots.pop(i)
+                lb.delete(i)
+        ttk.Button(side, text=self.t["add_folder"], command=add).pack(fill="x")
+        ttk.Button(side, text=self.t["remove"], command=remove).pack(fill="x", pady=(6, 0))
+
+    def page_mail(self, p):
+        ttk = self.ttk
+        p.columnconfigure(0, weight=1)
+        p.rowconfigure(1, weight=1)
+        ttk.Checkbutton(p, text=self.t["mail_on"], variable=self.v["mail_on"]).grid(row=0, column=0, sticky="w", pady=(0, 8))
+        tree = ttk.Treeview(p, columns=("name", "user", "host"), show="headings", height=8, selectmode="browse")
+        for col, key, w in (("name", "col_name", 160), ("user", "col_user", 220), ("host", "col_host", 160)):
+            tree.heading(col, text=self.t[key])
+            tree.column(col, width=w)
+        tree.grid(row=1, column=0, sticky="nsew")
+        status = ttk.Label(p, foreground="#555", wraplength=600, justify="left")
+        status.grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
+        def refresh():
+            tree.delete(*tree.get_children())
+            for i, a in enumerate(self.accounts):
+                tree.insert("", "end", iid=str(i), values=(a.get("name") or a["user"], a["user"], a["host"]))
+
+        def selected():
+            sel = tree.selection()
+            return int(sel[0]) if sel else None
+
+        def add():
+            acc = self.account_dialog({"port": 993, "security": "ssl"})
+            if acc:
+                self.accounts.append(acc)
+                refresh()
+
+        def edit(_=None):
+            i = selected()
+            if i is not None:
+                acc = self.account_dialog(dict(self.accounts[i]))
+                if acc:
+                    self.accounts[i] = acc
+                    refresh()
+
+        def remove():
+            i = selected()
+            if i is not None:
+                self.accounts.pop(i)
+                refresh()
+
+        def test():
+            i = selected()
+            if i is None:
                 return
-            self.send(404, {"error": "not found"})
+            status.configure(text=self.t["testing"])
+            self.run_bg(lambda: test_mail(self.accounts[i]), lambda r: status.configure(text=self.results_text(r)))
+        tree.bind("<Double-1>", edit)
+        side = ttk.Frame(p)
+        side.grid(row=1, column=1, sticky="n", padx=(10, 0))
+        for key, cmd in (("add", add), ("edit", edit), ("remove", remove), ("test", test)):
+            ttk.Button(side, text=self.t[key], command=cmd).pack(fill="x", pady=(0, 6))
+        refresh()
 
-    return Handler, last_ping
+    def account_dialog(self, acc):
+        tk, ttk = self.tk, self.ttk
+        win = tk.Toplevel(self.root)
+        win.title(self.t["acc_title"])
+        win.transient(self.root)
+        win.resizable(False, False)
+        frm = ttk.Frame(win, padding=16)
+        frm.pack(fill="both", expand=True)
+        frm.columnconfigure(0, weight=1)
+        frm.columnconfigure(1, weight=1)
+        v = {k: tk.StringVar(value=str(acc.get(k, "") or "")) for k in
+             ("name", "user", "password", "host", "port", "security", "display_name")}
+        self.field(frm, self.t["acc_name"], v["name"], 0)
+        self.field(frm, self.t["acc_user"], v["user"], 0, col=1)
+        self.field(frm, self.t["acc_host"], v["host"], 2)
+        pw = self.field(frm, self.t["acc_pass"], v["password"], 2, show="•", col=1)
+        if acc.get("has_password"):
+            pw.configure()
+        self.field(frm, self.t["acc_sec"], v["security"], 4, values=["ssl", "starttls"], width=12)
+        self.field(frm, self.t["acc_port"], v["port"], 4, width=8, col=1)
+        v["security"].trace_add("write", lambda *_: v["port"].set("993" if v["security"].get() == "ssl" else "143"))
+        self.field(frm, self.t["acc_display"], v["display_name"], 6)
+        ttk.Label(frm, text=self.t["acc_sig"]).grid(row=8, column=0, sticky="w")
+        sig = tk.Text(frm, height=3, width=60, font=("Segoe UI", 9), relief="solid", borderwidth=1)
+        sig.grid(row=9, column=0, columnspan=2, sticky="we", pady=(0, 10))
+        sig.insert("1.0", acc.get("signature") or "")
+        status = ttk.Label(frm, foreground="#555", wraplength=520, justify="left")
+        status.grid(row=10, column=0, columnspan=2, sticky="w")
+        result = {}
+
+        def current():
+            data = {k: var.get().strip() for k, var in v.items()}
+            data["signature"] = sig.get("1.0", "end").strip()
+            data["key"] = acc.get("key", "")
+            data["has_password"] = acc.get("has_password", False) or bool(data["password"])
+            if not data["name"]:
+                data["name"] = data["user"]
+            return data
+
+        def test():
+            data = current()
+            if not data["host"] or not data["user"]:
+                status.configure(text=self.t["need_host"])
+                return
+            status.configure(text=self.t["testing"])
+            self.run_bg(lambda: test_mail(data), lambda r: status.configure(text=self.results_text(r)))
+
+        def ok():
+            data = current()
+            if not data["host"] or not data["user"]:
+                status.configure(text=self.t["need_host"])
+                return
+            result["acc"] = data
+            win.destroy()
+        btns = ttk.Frame(frm)
+        btns.grid(row=11, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        ttk.Button(btns, text=self.t["test"], command=test).pack(side="left", padx=(0, 16))
+        ttk.Button(btns, text=self.t["ok"], command=ok).pack(side="left", padx=(0, 6))
+        ttk.Button(btns, text=self.t["cancel"], command=win.destroy).pack(side="left")
+        win.grab_set()
+        self.root.wait_window(win)
+        return result.get("acc")
+
+    def page_rules(self, p):
+        ttk, tk = self.ttk, self.tk
+        p.columnconfigure(0, weight=1)
+        p.columnconfigure(1, weight=1)
+        ttk.Label(p, text=self.t["hint"]).grid(row=0, column=0, columnspan=2, sticky="w")
+        self.hint_widget = tk.Text(p, height=3, font=("Segoe UI", 9), relief="solid", borderwidth=1, wrap="word")
+        self.hint_widget.grid(row=1, column=0, columnspan=2, sticky="we", pady=(2, 10))
+        self.hint_widget.insert("1.0", self.hint_text)
+        self.field(p, self.t["important"], self.v["important"], 2)
+        self.field(p, self.t["ignored"], self.v["ignored"], 2, col=1)
+        self.field(p, self.t["quiet"], self.v["quiet"], 4)
+        self.field(p, self.t["digest"], self.v["digest"], 4, col=1)
+        self.field(p, self.t["delete"], self.v["delete"], 6, width=8)
+        row = ttk.Frame(p)
+        row.grid(row=8, column=0, columnspan=2, sticky="w", pady=(4, 0))
+        ttk.Label(row, text=self.t["announce"]).pack(side="left", padx=(0, 8))
+        for c in ("important", "threat", "ad", "spam"):
+            ttk.Checkbutton(row, text=self.t[f"c_{c}"], variable=self.announce[c]).pack(side="left", padx=(0, 8))
+
+    def page_ha(self, p):
+        ttk = self.ttk
+        p.columnconfigure(0, weight=1)
+        ttk.Checkbutton(p, text=self.t["ha_on"], variable=self.v["ha_on"]).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        self.field(p, self.t["ha_url"], self.v["ha_url"], 1)
+        tok = self.field(p, self.t["ha_token"], self.v["ha_token"], 3, show="•")
+        if self.state["ha"]["has_token"]:
+            tok.configure()
+        status = ttk.Label(p, foreground="#555")
+        status.grid(row=6, column=0, sticky="w", pady=(6, 0))
+
+        def test():
+            status.configure(text=self.t["testing"])
+            self.run_bg(lambda: test_ha(self.v["ha_url"].get(), self.v["ha_token"].get()),
+                        lambda r: status.configure(text=self.results_text(r)))
+        ttk.Button(p, text=self.t["test"], command=test).grid(row=5, column=0, sticky="w")
+
+    def page_summary(self, p):
+        ttk = self.ttk
+        lines = [f"{self.t['language']}: {self.v['language'].get()} · {self.t['model']}: {self.v['model'].get()} / {self.v['effort'].get()}"]
+        if "voice" in self.modules:
+            lines.append(self.t["sum_mic"].format(self.v["mic"].get()))
+            lines.append(self.t["sum_out"].format(self.v["out"].get()))
+            cast = f"{self.v['cast_name'].get()} ({self.v['cast_host'].get()})" if self.v["cast_on"].get() else self.t["off"]
+            lines.append(self.t["sum_cast"].format(cast))
+        if "agents" in self.modules:
+            lines.append(self.t["sum_roots"].format(", ".join(self.roots) or "—"))
+        if "mail" in self.modules:
+            if self.v["mail_on"].get() and self.accounts:
+                lines.append(self.t["sum_accounts"].format(", ".join(a.get("name") or a["user"] for a in self.accounts)))
+            else:
+                lines.append(self.t["sum_mail_off"])
+        if "ha" in self.modules:
+            lines.append(self.t["sum_ha"].format(self.v["ha_url"].get() if self.v["ha_on"].get() else self.t["off"]))
+        for line in lines:
+            ttk.Label(p, text="•  " + line, wraplength=620, justify="left").pack(anchor="w", pady=2)
+        self.save_status = ttk.Label(p, foreground="#555")
+        self.save_status.pack(anchor="w", pady=(14, 0))
+
+    # --- zapis ---
+    def form_data(self):
+        v = self.v
+        return {
+            "language": v["language"].get(),
+            "achaja": {"model": v["model"].get(), "effort": v["effort"].get()},
+            "voice": {"microphone": self.device(v["mic"].get()), "local_device": self.device(v["out"].get()),
+                      "rate": v["rate"].get(), "default": "cast" if v["cast_default"].get() else "local",
+                      "cast": {"enabled": v["cast_on"].get(), "name": v["cast_name"].get(), "host": v["cast_host"].get()}},
+            "agents": {"project_roots": "\n".join(self.roots)},
+            "ha": {"enabled": v["ha_on"].get(), "url": v["ha_url"].get(), "token": v["ha_token"].get()},
+            "mail": {"enabled": v["mail_on"].get(), "important_hint": self.hint_text,
+                     "important_senders": v["important"].get(), "ignored_senders": v["ignored"].get(),
+                     "quiet_hours": v["quiet"].get(), "digest_at": v["digest"].get(), "delete_after_days": v["delete"].get(),
+                     "announce": [c for c, b in self.announce.items() if b.get()], "accounts": self.accounts},
+        }
+
+    def save(self):
+        from tkinter import messagebox
+        try:
+            cfg = apply_form(self.form_data(), self.modules)
+            restart_mail(cfg)
+        except Exception as exc:
+            messagebox.showerror(self.t["title"], self.t["save_error"].format(f"{type(exc).__name__}: {exc}"))
+            return
+        self.saved = True
+        messagebox.showinfo(self.t["title"], self.t["saved"])
+        self.root.destroy()
+
+    def run(self):
+        self.root.mainloop()
+        return self.saved
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modules", default=",".join(MODULES))
-    ap.add_argument("--no-browser", action="store_true")
-    ap.add_argument("--port", type=int, default=0)
     args = ap.parse_args()
     modules = [m for m in args.modules.replace(" ", "").split(",") if m in MODULES]
-    key = secrets.token_urlsafe(24)
-    server_ref = [None]
-    handler, last_ping = make_handler(key, modules, server_ref)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    server_ref[0] = server
-    url = f"http://127.0.0.1:{server.server_address[1]}/?k={key}"
+    try:  # ostre czcionki na ekranach z powiekszeniem
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+    Wizard(modules).run()
 
-    def watchdog():  # zamknieta karta bez zapisu nie blokuje instalatora na zawsze
-        while True:
-            time.sleep(10)
-            if time.time() - last_ping["at"] > 900:
-                server.shutdown()
-                return
-
-    threading.Thread(target=watchdog, daemon=True).start()
-    print(f"Konfiguracja Achai / Achaja setup: {url}", flush=True)
-    print("Formularz otworzy sie w przegladarce. Zapisz go, aby zakonczyc. / Save the form to finish.")
-    if not args.no_browser:
-        webbrowser.open(url)
-    server.serve_forever()
-    print("Konfiguracja zakonczona. / Setup finished.")
-
-
-PAGE = r"""<!doctype html>
-<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Achaja — konfiguracja</title>
-<style>
-:root{--bg:#f4f5f7;--card:#fff;--text:#1d2330;--muted:#667085;--line:#dde1e7;--accent:#6c4cd4;--ok:#1a7f4b;--err:#b42318}
-@media (prefers-color-scheme:dark){:root{--bg:#14161b;--card:#1d2027;--text:#e6e8ec;--muted:#9aa1ad;--line:#30343d;--accent:#9d86ff;--ok:#4ccf8a;--err:#ff7b6e}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:860px;margin:0 auto;padding:24px 16px 120px}h1{margin:0 0 4px;font-size:26px}p.lead{margin:0 0 20px;color:var(--muted)}
-section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:0 0 16px}
-section h2{margin:0 0 4px;font-size:18px}section p.hint{margin:0 0 14px;color:var(--muted);font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}
-label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}label.inline{display:flex;gap:8px;align-items:center;color:var(--text);font-size:15px}
-input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
-input[type=checkbox]{width:auto}textarea{min-height:60px;resize:vertical}
-button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:7px 14px;border-radius:8px;font:inherit;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-.account{border:1px dashed var(--line);border-radius:10px;padding:12px;margin:10px 0}
-.result{font-size:13px;margin-top:8px;white-space:pre-wrap}.ok{color:var(--ok)}.err{color:var(--err)}
-.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px}
-.bar .in{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
-.bar .msg{margin-right:auto}.hidden{display:none}
-</style></head><body><main>
-<h1 data-t="title"></h1><p class="lead" data-t="lead"></p>
-<section id="s-general"><h2 data-t="general"></h2><div class="grid">
- <div><label data-t="language"></label><select id="language"><option value="pl">Polski</option><option value="en">English</option></select></div>
- <div><label data-t="model"></label><select id="model"><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option></select></div>
- <div><label data-t="effort"></label><select id="effort"><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
-</div></section>
-<section id="s-voice"><h2 data-t="voice"></h2><p class="hint" data-t="voiceHint"></p><div class="grid">
- <div><label data-t="mic"></label><select id="mic"></select></div>
- <div><label data-t="out"></label><select id="outdev"></select></div>
- <div><label data-t="rate"></label><input id="rate"></div>
-</div>
- <div class="row"><label class="inline"><input type="checkbox" id="cast-on"><span data-t="cast"></span></label></div>
- <div class="grid" id="cast-box"><div><label data-t="castName"></label><input id="cast-name"></div><div><label data-t="castHost"></label><input id="cast-host" placeholder="192.168.0.10"></div>
- <div><label data-t="defaultOut"></label><select id="default-out"><option value="local" data-t="optLocal"></option><option value="cast" data-t="optCast"></option></select></div></div>
- <div class="row" id="cast-find-row"><button id="cast-find" data-t="find"></button><span id="cast-result" class="result"></span></div>
-</section>
-<section id="s-agents"><h2 data-t="agents"></h2><p class="hint" data-t="agentsHint"></p>
- <label data-t="roots"></label><textarea id="roots" placeholder="C:\projects"></textarea></section>
-<section id="s-ha"><h2>Home Assistant</h2><p class="hint" data-t="haHint"></p>
- <label class="inline"><input type="checkbox" id="ha-on"><span data-t="haOn"></span></label>
- <div class="grid" style="margin-top:10px"><div><label data-t="haUrl"></label><input id="ha-url" placeholder="http://homeassistant.local:8123"></div>
- <div><label data-t="haToken"></label><input id="ha-token" type="password" autocomplete="off"></div></div>
- <div class="row"><button id="ha-test" data-t="test"></button><span id="ha-result" class="result"></span></div></section>
-<section id="s-mail"><h2 data-t="mail"></h2><p class="hint" data-t="mailHint"></p>
- <label class="inline"><input type="checkbox" id="mail-on"><span data-t="mailOn"></span></label>
- <div id="accounts"></div><div class="row"><button id="add-account" data-t="addAccount"></button></div>
- <div class="grid" style="margin-top:14px">
-  <div style="grid-column:1/-1"><label data-t="hintLbl"></label><textarea id="m-hint" data-tp="hintPh"></textarea></div>
-  <div><label data-t="importantLbl"></label><input id="m-important" placeholder="szef@firma.pl, @urzad.gov.pl"></div>
-  <div><label data-t="ignoredLbl"></label><input id="m-ignored"></div>
-  <div><label data-t="quietLbl"></label><input id="m-quiet" placeholder="22:00-07:00"></div>
-  <div><label data-t="digestLbl"></label><input id="m-digest" placeholder="09:00, 18:00"></div>
-  <div><label data-t="deleteLbl"></label><input id="m-delete" type="number" min="0"></div>
- </div>
- <div class="row"><span data-t="announceLbl"></span>
-  <label class="inline"><input type="checkbox" class="ann" value="important"><span data-t="cImportant"></span></label>
-  <label class="inline"><input type="checkbox" class="ann" value="threat"><span data-t="cThreat"></span></label>
-  <label class="inline"><input type="checkbox" class="ann" value="ad"><span data-t="cAd"></span></label>
-  <label class="inline"><input type="checkbox" class="ann" value="spam">spam</label></div>
-</section>
-</main>
-<div class="bar"><div class="in"><span class="msg result" id="save-result"></span>
- <button id="quit" data-t="quit"></button><button class="primary" id="save" data-t="save"></button></div></div>
-<template id="acc-tpl"><div class="account"><div class="grid">
- <div><label data-t="accName"></label><input data-f="name" placeholder="Firma"></div>
- <div><label data-t="accUser"></label><input data-f="user" placeholder="ja@firma.pl"></div>
- <div><label data-t="accPass"></label><input data-f="password" type="password" autocomplete="new-password"></div>
- <div><label data-t="accHost"></label><input data-f="host" placeholder="mail.firma.pl"></div>
- <div><label data-t="accPort"></label><input data-f="port" type="number" value="993"></div>
- <div><label data-t="accSec"></label><select data-f="security"><option value="ssl">SSL (993)</option><option value="starttls">STARTTLS (143)</option></select></div>
- <div><label data-t="accDisplay"></label><input data-f="display_name"></div>
- <div style="grid-column:1/-1"><label data-t="accSig"></label><textarea data-f="signature"></textarea></div></div>
- <div class="row"><button class="acc-test" data-t="test"></button><button class="acc-del" data-t="remove"></button><span class="result acc-result"></span></div></div></template>
-<script>
-const KEY=new URLSearchParams(location.search).get("k");
-const T={pl:{title:"Achaja — konfiguracja",lead:"Uzupełnij ustawienia wybranych modułów. Wszystko zostaje na tym komputerze; hasła nie wracają do tej strony — puste pole hasła oznacza „bez zmian”.",
-general:"Ogólne",language:"Język asystentki",model:"Model Achai",effort:"Wysiłek (szybkość / dokładność)",voice:"Głos i mikrofon",voiceHint:"Mikrofon do słowa wybudzenia i wyjście, na którym Achaja mówi.",
-mic:"Mikrofon",out:"Wyjście głosu (lokalne)",rate:"Tempo mowy",cast:"Głośnik Google Cast / Google Home",castName:"Nazwa głośnika",castHost:"Adres IP głośnika",defaultOut:"Domyślne wyjście",optLocal:"lokalne",optCast:"głośnik",find:"Szukaj głośników w sieci",
-agents:"Agenci projektów",agentsHint:"Foldery, w których leżą Twoje projekty — każdy podfolder to projekt, któremu Achaja może zlecić pracę.",roots:"Foldery z projektami (jeden w linii)",
-haHint:"Sterowanie domem przez integrację „Model Context Protocol Server” w Home Assistant i token długoterminowy.",haOn:"Włącz Home Assistant",haUrl:"Adres Home Assistant",haToken:"Token (puste = bez zmian)",
-mail:"Poczta",mailHint:"Achaja pilnuje skrzynek IMAP: usuwa reklamy, spam i phishing, a o ważnych mailach mówi na głos. Odpowiedzi idą przez SMTP tego samego serwera.",mailOn:"Włącz nasłuch poczty",addAccount:"+ Dodaj konto",
-hintLbl:"Co jest dla Ciebie ważne (własnymi słowami)",hintPh:"Np. wszystko od klientów i o fakturach jest ważne; newslettery to reklama.",importantLbl:"Zawsze ważni nadawcy (adresy lub @domeny)",ignoredLbl:"Pomijani nadawcy",quietLbl:"Godziny ciszy",digestLbl:"Raport o godzinach",deleteLbl:"Usuwaj z serwera po (dniach)",
-announceLbl:"Mów na głos o:",cImportant:"ważnych",cThreat:"zagrożeniach",cAd:"reklamach",accName:"Nazwa konta",accUser:"Adres / login",accPass:"Hasło (puste = bez zmian)",accHost:"Serwer",accPort:"Port",accSec:"Szyfrowanie",accDisplay:"Twoje imię w odpowiedziach",accSig:"Podpis",
-test:"Testuj",remove:"Usuń",save:"Zapisz i zakończ",quit:"Zamknij bez zapisu",saved:"Zapisano. Możesz zamknąć tę kartę.",closed:"Zamknięto bez zapisu. Możesz zamknąć tę kartę.",testing:"Sprawdzam…",searching:"Szukam…",none:"Nie znaleziono głośników.",default:"(domyślne systemowe)"},
-en:{title:"Achaja — setup",lead:"Fill in the settings of the selected modules. Everything stays on this computer; passwords are never sent back to this page — an empty password field means “unchanged”.",
-general:"General",language:"Assistant language",model:"Achaja model",effort:"Effort (speed / accuracy)",voice:"Voice and microphone",voiceHint:"The microphone for the wake word and the output Achaja speaks on.",
-mic:"Microphone",out:"Voice output (local)",rate:"Speech rate",cast:"Google Cast / Google Home speaker",castName:"Speaker name",castHost:"Speaker IP address",defaultOut:"Default output",optLocal:"local",optCast:"speaker",find:"Find speakers on the network",
-agents:"Project agents",agentsHint:"Folders holding your projects — every subfolder is a project Achaja can hand work to.",roots:"Project folders (one per line)",
-haHint:"Home control through the “Model Context Protocol Server” integration in Home Assistant and a long-lived token.",haOn:"Enable Home Assistant",haUrl:"Home Assistant address",haToken:"Token (empty = unchanged)",
-mail:"Mail",mailHint:"Achaja watches IMAP mailboxes: removes ads, spam and phishing, and announces important mail aloud. Replies go through SMTP on the same server.",mailOn:"Enable the mail watcher",addAccount:"+ Add account",
-hintLbl:"What is important to you (in your own words)",hintPh:"E.g. anything from clients or about invoices is important; newsletters are ads.",importantLbl:"Always important senders (addresses or @domains)",ignoredLbl:"Ignored senders",quietLbl:"Quiet hours",digestLbl:"Report at",deleteLbl:"Delete from the server after (days)",
-announceLbl:"Speak about:",cImportant:"important",cThreat:"threats",cAd:"ads",accName:"Account name",accUser:"Address / login",accPass:"Password (empty = unchanged)",accHost:"Server",accPort:"Port",accSec:"Encryption",accDisplay:"Your name in replies",accSig:"Signature",
-test:"Test",remove:"Remove",save:"Save and finish",quit:"Close without saving",saved:"Saved. You can close this tab.",closed:"Closed without saving. You can close this tab.",testing:"Checking…",searching:"Searching…",none:"No speakers found.",default:"(system default)"}};
-let L="pl",S=null;const $=id=>document.getElementById(id);
-const api=(p,b)=>fetch(p,{method:b?"POST":"GET",headers:{"X-Achaja-Key":KEY,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
-function tr(root=document){root.querySelectorAll("[data-t]").forEach(e=>e.textContent=T[L][e.dataset.t]);root.querySelectorAll("[data-tp]").forEach(e=>e.placeholder=T[L][e.dataset.tp]);document.documentElement.lang=L}
-function show(el,res){el.innerHTML="";res.forEach(([ok,t])=>{const d=document.createElement("div");d.className=ok?"ok":"err";d.textContent=(ok?"✓ ":"✗ ")+t;el.appendChild(d)})}
-function fillSelect(sel,items,val){sel.innerHTML="";const o=new Option(T[L].default,"");sel.add(o);items.forEach(n=>sel.add(new Option(n,n)));
- if(val&&!items.some(n=>n.toLowerCase().includes(val.toLowerCase())))sel.add(new Option(val,val));
- sel.value=items.find(n=>val&&n.toLowerCase().includes(val.toLowerCase()))||val||""}
-function addAccount(a={}){const n=$("acc-tpl").content.firstElementChild.cloneNode(true);n.dataset.key=a.key||"";
- n.querySelectorAll("[data-f]").forEach(e=>{const v=a[e.dataset.f];if(v!==undefined&&v!=="")e.value=v});
- if(a.has_password)n.querySelector('[data-f=password]').placeholder="••••••••";
- n.querySelector(".acc-del").onclick=()=>n.remove();
- n.querySelector("[data-f=security]").onchange=e=>{n.querySelector("[data-f=port]").value=e.target.value==="ssl"?993:143};
- n.querySelector(".acc-test").onclick=async()=>{const r=n.querySelector(".acc-result");r.textContent=T[L].testing;show(r,await api("/api/test-mail",readAccount(n)))};
- tr(n);$("accounts").appendChild(n)}
-function readAccount(n){const a={key:n.dataset.key};n.querySelectorAll("[data-f]").forEach(e=>a[e.dataset.f]=e.value.trim?e.value.trim():e.value);return a}
-async function load(){S=await api("/api/state");L=S.language in T?S.language:"en";tr();
- for(const m of["voice","agents","mail","ha"])$("s-"+m).classList.toggle("hidden",!S.modules.includes(m));
- $("language").value=S.language;$("model").value=S.achaja.model||"sonnet";$("effort").value=S.achaja.effort||"low";
- const v=S.voice;fillSelect($("mic"),S.devices.input,v.microphone);fillSelect($("outdev"),S.devices.output,v.local_device);$("rate").value=v.rate;
- $("cast-on").checked=v.cast.enabled;$("cast-name").value=v.cast.name;$("cast-host").value=v.cast.host;$("default-out").value=v.default;castToggle();
- $("roots").value=S.agents.project_roots.join("\n");
- $("ha-on").checked=S.ha.enabled;$("ha-url").value=S.ha.url;if(S.ha.has_token)$("ha-token").placeholder="••••••••";
- const m=S.mail;$("mail-on").checked=m.enabled;$("m-hint").value=m.important_hint||"";$("m-important").value=m.important_senders;$("m-ignored").value=m.ignored_senders;
- $("m-quiet").value=m.quiet_hours||"";$("m-digest").value=m.digest_at;$("m-delete").value=m.delete_after_days;
- document.querySelectorAll(".ann").forEach(c=>c.checked=m.announce.includes(c.value));
- m.accounts.forEach(addAccount);if(!m.accounts.length)addAccount();
- setInterval(()=>api("/api/ping"),20000)}
-function castToggle(){const on=$("cast-on").checked;$("cast-box").classList.toggle("hidden",!on);$("cast-find-row").classList.toggle("hidden",!on)}
-$("cast-on").onchange=castToggle;
-$("language").onchange=e=>{L=e.target.value;tr()};
-$("cast-find").onclick=async()=>{const r=$("cast-result");r.textContent=T[L].searching;const list=await api("/api/cast");r.innerHTML="";
- if(!list.length){r.textContent=T[L].none;return}list.forEach(c=>{const b=document.createElement("button");b.textContent=`${c.name} (${c.host})`;b.onclick=()=>{$("cast-name").value=c.name;$("cast-host").value=c.host};r.appendChild(b)})};
-$("ha-test").onclick=async()=>{const r=$("ha-result");r.textContent=T[L].testing;show(r,await api("/api/test-ha",{url:$("ha-url").value,token:$("ha-token").value}))};
-$("add-account").onclick=()=>addAccount();
-function collect(){return{language:$("language").value,achaja:{model:$("model").value,effort:$("effort").value},
- voice:{microphone:$("mic").value,local_device:$("outdev").value,rate:$("rate").value,default:$("default-out").value,cast:{enabled:$("cast-on").checked,name:$("cast-name").value,host:$("cast-host").value}},
- agents:{project_roots:$("roots").value},ha:{enabled:$("ha-on").checked,url:$("ha-url").value,token:$("ha-token").value},
- mail:{enabled:$("mail-on").checked,important_hint:$("m-hint").value,important_senders:$("m-important").value,ignored_senders:$("m-ignored").value,quiet_hours:$("m-quiet").value,
-  digest_at:$("m-digest").value,delete_after_days:$("m-delete").value,announce:[...document.querySelectorAll(".ann:checked")].map(c=>c.value),
-  accounts:[...document.querySelectorAll("#accounts .account")].map(readAccount)}}}
-function done(msg){document.querySelectorAll("button,input,select,textarea").forEach(e=>e.disabled=true);$("save-result").className="msg result ok";$("save-result").textContent=msg}
-$("save").onclick=async()=>{const r=await api("/api/save",collect());if(r.ok)done(T[L].saved);else{$("save-result").className="msg result err";$("save-result").textContent=r.error}};
-$("quit").onclick=async()=>{await api("/api/quit",{});done(T[L].closed)};
-load();
-</script></body></html>"""
 
 if __name__ == "__main__":
     main()
