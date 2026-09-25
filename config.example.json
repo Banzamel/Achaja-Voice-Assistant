@@ -50,6 +50,49 @@
     "url": "http://homeassistant.local:8123"
   },
 
+  "mail": {
+    "_comment": "Opcjonalne: nasłuch skrzynek IMAP w tle (mail_watch.py startuje z Achają). Reklamy, spam i zagrożenia trafiają do folderów Achai, o ważnych wiadomościach Achaja mówi na głos. Każde konto może nadpisać dowolne ustawienie wspólne. / Optional: background IMAP watcher; ads, spam and threats go to Achaja's folders, important mail is announced aloud. Each account may override any shared setting.",
+    "enabled": false,
+    "model": "haiku",
+    "announce": ["important", "threat"],
+    "_announce": "Kategorie ogłaszane głosem: important, normal, ad, spam, threat. / Categories announced aloud.",
+    "quiet_hours": "22:00-07:00",
+    "_quiet_hours": "W tych godzinach Achaja nie mówi — ogłoszenia czekają. Puste = zawsze. / No speech in these hours; announcements wait.",
+    "important_hint": "",
+    "_important_hint": "Twoje zasady dla klasyfikatora, np. 'Wszystko od klientów i o fakturach jest ważne; newslettery JetBrains to reklama.' / Your own rules for the classifier.",
+    "important_senders": [],
+    "ignored_senders": [],
+    "_senders": "Adresy ('jan@firma.pl') albo domeny ('@firma.pl'). Ważni nadawcy pomijają filtr spamu (chyba że DMARC wykaże podszycie). / Addresses or domains.",
+    "handling": {"ad": "Achaja/Reklamy", "spam": "Achaja/Spam", "threat": "Achaja/Kwarantanna"},
+    "_handling": "Folder docelowy dla kategorii, 'keep' = zostaw w skrzynce, 'delete' = usuń od razu. / Target folder, 'keep' or 'delete'.",
+    "delete_after_days": 7,
+    "_delete_after_days": "Po tylu dniach (od przeniesienia) wiadomości z folderów Achai są usuwane z serwera; 0 = nigdy. / Purge Achaja's folders on the server N days after the move; 0 = never.",
+    "digest_at": ["18:00"],
+    "_digest_at": "Stałe godziny raportu głosem (ile ważnych, ile usuniętych reklam i spamu); raport milczy, gdy nic nie przyszło. / Fixed times for a spoken mail report.",
+    "scan_existing": true,
+    "scan_existing_days": 30,
+    "_scan_existing": "Przy pierwszym starcie przejrzyj starą pocztę: wszystkie nieprzeczytane + wszystko z ostatnich N dni. / On first start review existing mail: all unread + everything from the last N days.",
+    "log_days": 14,
+    "_log_days": "Lokalnie trzymane są tylko metadane (nadawca, temat, kategoria) z tylu dni, bez treści. / Only metadata is kept locally, for N days.",
+    "scan_attachments": true,
+    "_scan_attachments": "Skan załączników Windows Defenderem (oprócz blokady plików wykonywalnych i makr). / Scan attachments with Windows Defender.",
+    "accounts": [
+      {
+        "name": "firma",
+        "host": "mail.example.com",
+        "port": 993,
+        "security": "ssl",
+        "user": "ja@example.com",
+        "password": "",
+        "folder": "INBOX",
+        "display_name": "Jan Kowalski",
+        "signature": "Jan Kowalski\nFirma",
+        "_sending": "Odpowiedzi idą przez SMTP tego samego serwera (465/ssl albo 587/starttls). Inne ustawienia: smtp_host, smtp_port, smtp_security (ssl/starttls/none), smtp_user, smtp_password, address (gdy login nie jest adresem). / Replies go through SMTP on the same host by default.",
+        "_account": "security: ssl (993) albo starttls (143). verify_tls: false dla certyfikatu self-signed. enabled: false wyłącza konto. / security: ssl or starttls; verify_tls false for self-signed certs."
+      }
+    ]
+  },
+
   "languages": {
     "_comment": "Słowa sterujące muszą być w słowniku modelu Vosk — imię własne nigdy nie jest rozpoznawane wprost, więc używamy fraz brzmiących podobnie ('Achaja' to 'aha ja' po polsku i 'a kaya' po angielsku). Modele: alphacephei.com/vosk/models / Control words must exist in the Vosk model's dictionary; a name is matched by a similar-sounding phrase.",
     "pl": {

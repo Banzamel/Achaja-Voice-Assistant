@@ -36,6 +36,7 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 - **Acknowledgements** — "I'm on it" right after submit, and "still working" during longer tasks.
 - **Project agents** — "have the agent for <project> do X" starts a separate Claude Code session **inside that project's folder** (with its own `CLAUDE.md`, skills and settings), shows live progress in its own window, and returns a report that Achaja summarizes aloud.
 - **Audio outputs** — headphones or a Google Cast / Google Home speaker ("answer through the speaker").
+- **Mail (optional)** — a background watcher on any number of IMAP mailboxes: ads, spam and threats (phishing, malware) are cleaned out on the server, a spoken report says what is important and how much was removed, and Achaja can reply (after your yes).
 - **Home (optional)** — Home Assistant through its official MCP integration: lights, climate, covers, media, live state.
 - **Windows audio tool** — assign a microphone or speaker to a single program (e.g. `claude.exe`) without changing the system default devices.
 
@@ -123,9 +124,27 @@ Achaja ──► agent.py run <project> ──► claude -p  (cwd = the project 
 
 `setup/ha_areas.py` also helps tidy the home: `dump` lists areas and entities with no room assigned, `apply plan.json` assigns devices to areas — Assist then understands commands like "turn off the lights in the bedroom" much better.
 
+## Mail (optional)
+
+```
+IMAP server ──IDLE──► mail_watch.py (background, one connection per account)
+                        ├─ rules: server spam/virus headers, executable or macro attachments,
+                        │         Windows Defender scan, important / ignored senders
+                        ├─ the rest: claude -p --model haiku with NO tools → important | normal | ad | spam | threat
+                        ├─ ad / spam / threat → Achaja's folders on the server (purged after delete_after_days) or deleted
+                        └─ spoken report when you are not talking to Achaja: important mail with sender and gist,
+                           the rest as numbers ("I removed 30 ads and 2 spam messages"); also at digest_at times
+```
+
+1. Fill in `mail.accounts` in `config.json` (an array — host, port, `security` ssl/starttls, user, password; any shared setting can be overridden per account) and set `mail.enabled` to `true`.
+2. Check the connection: `.venv\Scripts\python.exe .claude\scripts\mail.py test`.
+3. Start Achaja (the watcher starts with it) or run `mail.py start`.
+
+Mail is never marked as read. The first start reviews existing mail (all unread plus the last `scan_existing_days` days) and reports once at the end; `mail.py rescan` repeats it on demand. Everything happens on the server: moved mail is purged `delete_after_days` (7 by default) after the move, "that wasn't spam" brings it back (`mail.py move <n> inbox`), and locally only metadata from the last `log_days` days is kept. Replies (`mail.py reply <n> --text-file F`, or `--draft`) go out over SMTP, get a copy in Sent and mark the original as answered; Achaja reads the draft aloud and sends it only after your yes. E-mail content only ever reaches a model with no tools and comes back as a category, so instructions hidden in an e-mail cannot trigger actions. For viruses the best first line of defence is the mail server itself (e.g. Rspamd + ClamAV) — Achaja trusts its `X-Spam-*` / `X-Virus-*` headers.
+
 ## Configuration
 
-Everything lives in `config.json` (created from `config.example.json`): microphone, control words and their sensitivity, the model and effort of the Achaja session, voice and audio outputs, acknowledgement phrases, project folders and aliases, Home Assistant. Most commonly tuned:
+Everything lives in `config.json` (created from `config.example.json`): microphone, control words and their sensitivity, the model and effort of the Achaja session, voice and audio outputs, acknowledgement phrases, project folders and aliases, Home Assistant, mail accounts. Most commonly tuned:
 
 | Key | Meaning |
 |---|---|
@@ -134,6 +153,7 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 | `achaja.model`, `achaja.effort` | speed vs. quality of answers |
 | `voice.outputs`, `voice.default_output` | headphones, Cast speaker |
 | `voice.ack_phrases`, `voice.working_phrases` | acknowledgements and reminders |
+| `mail.accounts`, `mail.important_hint`, `mail.quiet_hours` | mailboxes, your own "what is important" rules, silent hours |
 
 ## Privacy and safety
 
@@ -159,13 +179,5 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 - The screen must not be locked (a sleeping monitor is fine).
 - Dictation requires a claude.ai account in Claude Code.
 - The small Vosk model confuses similar words — that's why control words are matched fuzzily while the prompt itself is transcribed by Claude.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md). Releases follow [Semantic Versioning](https://semver.org/).
-
-## License
-
-MIT — see [LICENSE](LICENSE).
 
 Pull requests welcome: other operating systems, other speech engines, new voice satellites.

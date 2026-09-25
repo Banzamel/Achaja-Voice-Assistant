@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / ".claude" / "scripts"

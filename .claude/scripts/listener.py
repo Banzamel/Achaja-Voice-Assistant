@@ -101,6 +101,15 @@ def launch_achaja(resume):
     return proc.pid
 
 
+def start_mail_watch(cfg):
+    """Nasluch poczty w tle (mail_watch.py sam pilnuje, zeby dzialala jedna kopia)."""
+    mail = cfg.get("mail") or {}
+    if mail.get("enabled") and mail.get("accounts"):
+        subprocess.Popen([str(PYTHONW), str(SCRIPTS / "mail_watch.py")], cwd=str(SCRIPTS),
+                         creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW, close_fds=True)
+        log("Nasluch poczty dziala w tle (mail.py status).")
+
+
 def contains(text, phrases):
     padded = f" {text} "
     return any(f" {p} " in padded for p in phrases)
@@ -188,6 +197,7 @@ def main():
     if not pid:
         pid = launch_achaja(args.resume)
     write_json(STATE / "listener.json", {"listener_pid": os.getpid(), "claude_pid": pid})
+    start_mail_watch(cfg)
 
     audio = queue.Queue()
     device = pick_microphone(sd, args.device or cfg["wake"].get("microphone"))
@@ -215,6 +225,7 @@ def main():
         partial_text = ""
         if inject(pid, "ctrl+u", "space"):
             state, started, last_speech = RECORDING, time.time(), time.time()
+            write_json(STATE / "recording.json", {"at": started})  # inne procesy (poczta) nie wchodza w slowo
             log(f"{reason} Stan: {state}")
             assign_claude_microphone(pid, cfg["wake"].get("microphone"))
 
@@ -222,6 +233,7 @@ def main():
         nonlocal state
         wake_rec.Reset()
         state = IDLE
+        (STATE / "recording.json").unlink(missing_ok=True)
         log(f"{msg} Stan: {state}")
 
     with sd.RawInputStream(samplerate=16000, blocksize=4000, dtype="int16", channels=1,
