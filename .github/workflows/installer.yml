@@ -1,0 +1,43 @@
+name: Installer
+
+# Tag v* -> buduje AchajaSetup-<wersja>.exe i dołącza go do wydania na GitHubie.
+# Ręcznie (Actions -> Installer -> Run workflow) -> instalator do pobrania jako artefakt.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME.TrimStart("v") } else { "0.0.0-dev" }
+          ./setup/build-installer.ps1 -Version $version -Iscc "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AchajaSetup
+          path: dist/*.exe
+
+      - name: Attach to release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME 2>$null
+          if ($LASTEXITCODE -ne 0) { gh release create $env:GITHUB_REF_NAME --generate-notes }
+          gh release upload $env:GITHUB_REF_NAME (Get-ChildItem dist/*.exe) --clobber

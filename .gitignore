@@ -12,3 +12,7 @@ config.json
 .claude/settings.json
 .claude/settings.local.json
 .claude/CLAUDE.local.md
+
+# budowanie instalatora
+build/
+dist/

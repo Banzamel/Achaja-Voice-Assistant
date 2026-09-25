@@ -44,11 +44,24 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 
 - **Windows 10/11** (keystroke injection and per-app audio routing use Windows APIs).
 - **[Claude Code](https://claude.com/claude-code)** signed in with a **claude.ai account** — dictation does not work with an API key or through Bedrock/Vertex.
-- **Python 3.11+** (the installer creates a project-local `.venv`).
+- **Python 3.11+** only for the script install — `AchajaSetup.exe` brings its own.
 - A **microphone** and an audio output; an internet connection for speech synthesis (edge-tts).
 - Optional: Home Assistant 2025.2+ (the "Model Context Protocol Server" integration), a Google Cast speaker.
 
 ## Install
+
+### Installer (recommended)
+
+Download `AchajaSetup-<version>.exe` from [Releases](https://github.com/Banzamel/Achaja-Voice-Assistant/releases) and run it. The wizard:
+
+- asks for the language and lets you pick the **modules** — voice assistant (required), project agents, mail, Home Assistant — and whether Achaja starts with Windows;
+- installs for the current user only (no administrator rights) into `%LOCALAPPDATA%\Programs\Achaja`, with its own portable Python — nothing is installed system-wide;
+- downloads the libraries and the speech model, then opens a **settings form** in your browser: microphone and speakers (from a list of your devices), Google Cast speaker search, project folders, mail accounts with a *Test* button, Home Assistant address and token;
+- adds "Achaja" and "Achaja – settings" to the Start menu and a normal uninstaller to *Apps & features*.
+
+The file is not code-signed, so Windows SmartScreen shows a warning on the first run (*More info → Run anyway*). Unattended install: `AchajaSetup.exe /SILENT /COMPONENTS="voice,mail" /noconfigure=1`.
+
+### From source
 
 ```powershell
 git clone https://github.com/Banzamel/Achaja-Voice-Assistant.git
@@ -56,17 +69,17 @@ cd Achaja-Voice-Assistant
 powershell -ExecutionPolicy Bypass -File install.ps1 -Language en   # or -Language pl (default); add -Autostart
 ```
 
-The installer creates `.venv`, installs the dependencies, downloads the speech model (~50 MB), creates `config.json` from the template and generates `.claude/settings.json` with the voice hooks. Options: `-Language pl|en`, `-Autostart` (start on login), `-SkipModel`.
+The script creates `.venv`, installs the dependencies, downloads the speech model (~50 MB), creates `config.json` and `.claude/settings.json` with the voice hooks, and opens the same settings form. Options: `-Language pl|en`, `-Modules voice,agents,mail,ha`, `-Autostart`, `-SkipModel`, `-NoConfigure`, `-Python <path>`.
 
 Then:
 
-1. Open `config.json` and set at least `wake.microphone` and `agents.project_roots` (the folders holding your projects).
+1. Change settings any time with the form: `.venv\Scripts\python.exe setup\configure.py` (or edit `config.json` directly).
 2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
 3. Run `start-achaja.cmd`. Two windows open: the listener and the Claude Code session named "Achaja".
 
 ### Language
 
-There is **one** `config.json`. It carries a `language` key and a `languages` block with the control words, speech model, voice and acknowledgement phrases for each language. `install.ps1 -Language en|pl` sets that key, downloads the matching Vosk model, sets the reply language and (for English) installs the English assistant rules:
+There is **one** `config.json`. It carries a `language` key and a `languages` block with the control words, speech model, voice and acknowledgement phrases for each language. `install.ps1 -Language en|pl` sets that key, downloads the matching Vosk model and sets the reply language. The assistant rules (`.claude/CLAUDE.md`) are one file for every language:
 
 | | `-Language pl` (default) | `-Language en` |
 |---|---|---|
@@ -76,7 +89,7 @@ There is **one** `config.json`. It carries a `language` key and a `languages` bl
 | Voice | `pl-PL-ZofiaNeural` | `en-US-JennyNeural` |
 | Spoken-summary marker | `[GŁOS]` | `[VOICE]` |
 
-Any other language works too: add a block to `languages` with a model from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models) and control words **the model actually knows** — an invented name is never recognized, so use a phrase that sounds like it (Polish "Achaja" is matched as `aha ja`). Set its `tts_voice` too, switch `language` in `.claude/settings.json`, and translate `.claude/CLAUDE.md`.
+Any other language works too: add a block to `languages` with a model from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models) and control words **the model actually knows** — an invented name is never recognized, so use a phrase that sounds like it (Polish "Achaja" is matched as `aha ja`). Set its `tts_voice` too and switch `language` in `.claude/settings.json` — the rules file needs no translation.
 
 Note that only the control words depend on this model. The prompt itself is transcribed by Claude Code, and Claude replies in the language you spoke.
 
@@ -136,7 +149,7 @@ IMAP server ──IDLE──► mail_watch.py (background, one connection per ac
                            the rest as numbers ("I removed 30 ads and 2 spam messages"); also at digest_at times
 ```
 
-1. Fill in `mail.accounts` in `config.json` (an array — host, port, `security` ssl/starttls, user, password; any shared setting can be overridden per account) and set `mail.enabled` to `true`.
+1. Add the accounts in the settings form (or in `mail.accounts` in `config.json` — an array: host, port, `security` ssl/starttls, user, password; any shared setting can be overridden per account) and turn mail on.
 2. Check the connection: `.venv\Scripts\python.exe .claude\scripts\mail.py test`.
 3. Start Achaja (the watcher starts with it) or run `mail.py start`.
 
@@ -181,3 +194,7 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 - The small Vosk model confuses similar words — that's why control words are matched fuzzily while the prompt itself is transcribed by Claude.
 
 Pull requests welcome: other operating systems, other speech engines, new voice satellites.
+
+## Building the installer
+
+`powershell -ExecutionPolicy Bypass -File setup\build-installer.ps1 -Version 0.3.0` puts `AchajaSetup-0.3.0.exe` into `dist\`. It uses Inno Setup's `ISCC.exe` if installed, otherwise the `amake/innosetup` Docker image. Pushing a `v*` tag builds it in GitHub Actions and attaches it to the release.

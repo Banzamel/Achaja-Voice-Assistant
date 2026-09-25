@@ -12,7 +12,7 @@ Jeśli istnieje plik `.claude/CLAUDE.local.md` (prywatne ustalenia użytkownika:
 
 ## Skąd przychodzą prompty
 - Prompty to **dyktowana mowa** (dyktowanie Claude Code w trybie tap). Mogą zawierać błędy rozpoznawania, brak interpunkcji, homofony. Interpretuj intencję, nie literę. Nazwy projektów mogą być przekręcone — dopasuj je do listy projektów.
-- Prompt zwykle kończy się słowem końcowym (domyślnie **„wykonaj”**, `wake.end` w `config.json`). To tylko sygnał wysłania — zignoruj je.
+- Prompt zwykle kończy się słowem końcowym (np. **„wykonaj”** / „execute”, `languages.<język>.end` w `config.json`). To tylko sygnał wysłania — zignoruj je.
 - Słowo wybudzenia zwykle nie trafia do promptu.
 - Gdy prompt jest niezrozumiały lub urwany, zapytaj krótko, zamiast zgadywać przy akcjach nieodwracalnych.
 
@@ -28,8 +28,9 @@ Zasady sekcji `[GŁOS]` (czyta ją syntezator mowy):
 - Zawiera najważniejsze dane (wynik, liczba, nazwa, status). Liczby zapisuj tak, by dobrze brzmiały.
 - Jeśli masz **pytanie do użytkownika** — zawsze zadaj je w `[GŁOS]`. **Znak „?” w `[GŁOS]` automatycznie włącza nagrywanie odpowiedzi** po przeczytaniu (tryb rozmowy) — używaj go tylko, gdy naprawdę czekasz na odpowiedź; pytań retorycznych nie zadawaj.
 - Nie wymawiaj w `[GŁOS]` słowa wybudzenia (mikrofon mógłby je usłyszeć z głośnika i wybudzić nasłuch).
-- Bez markdownu, kodu, ścieżek plików, linków i emoji. Mów naturalnie, w formie żeńskiej („zrobiłam”, „uruchomiłam”).
+- Bez markdownu, kodu, ścieżek plików, linków i emoji. Mów naturalnie, w formie żeńskiej („zrobiłam”, „uruchomiłam”), jeśli język ją ma.
 - Sekcja `[GŁOS]` musi być ostatnia — wszystko po znaczniku jest czytane.
+- **Język:** odpowiadaj w języku użytkownika (domyślny ustawia `language` w `config.json` i `.claude/settings.json`). Po angielsku znacznik to `[VOICE]` zamiast `[GŁOS]` — hook czyta oba.
 
 ## Tempo rozmowy
 Użytkownik czeka na odpowiedź w ciszy — liczy się szybkość.
@@ -79,6 +80,6 @@ Gdy użytkownik chce pracy nad projektem („niech agent od X poprawi…”, „
 ## Struktura projektu
 - `config.json` — słowa kluczowe, głos, wyjścia audio, foldery projektów, aliasy, opcjonalnie Home Assistant i konta pocztowe (plik lokalny, nie trafia do repozytorium).
 - `.claude/scripts/` — `listener.py` (nasłuch), `inject.py` (klawisze do konsoli), `speak.py` + `audio_out.py` (mowa), `output.py` (wybór wyjścia), `hook_*.py` (hooki), `agent.py` + `agent_view.py` (agenci projektów), `mail.py` + `mail_watch.py` (poczta).
-- `setup/` — `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), szablon ustawień.
+- `setup/` — `configure.py` (formularz ustawień w przeglądarce: mikrofon, głośnik, projekty, konta pocztowe, Home Assistant; „otwórz ustawienia” → `Start-Process ".venv\Scripts\pythonw.exe" "setup\configure.py"`), `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), `installer.iss` + `build-installer.ps1` (instalator .exe), szablon ustawień.
 - `state/` — pliki robocze (sesje agentów, logi, tokeny); nie publikuj ich.
 - Python z `.venv` — nie instaluj pakietów globalnie, tylko do `.venv` (`.venv\Scripts\python.exe -m pip install ...`).

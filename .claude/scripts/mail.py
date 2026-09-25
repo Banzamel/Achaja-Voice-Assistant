@@ -437,21 +437,25 @@ def report(entries, cfg, intro="", names=3, multi_account=False):
 
 # ---------- wysylanie ----------
 
-def smtp_send(acct, msg):
+def smtp_connect(acct, timeout=60):
+    """Zalogowane polaczenie SMTP konta: (serwer, host, port, security)."""
     security = acct.get("smtp_security") or ("ssl" if acct.get("security", "ssl") == "ssl" else "starttls")
     host = acct.get("smtp_host") or acct["host"]
     port = acct.get("smtp_port") or {"ssl": 465, "starttls": 587}.get(security, 25)
-    user = acct.get("smtp_user") or acct["user"]
-    password = acct.get("smtp_password") or acct["password"]
     if security == "ssl":
-        server = smtplib.SMTP_SSL(host, port, context=tls_context(acct), timeout=60)
+        server = smtplib.SMTP_SSL(host, port, context=tls_context(acct), timeout=timeout)
     else:
-        server = smtplib.SMTP(host, port, timeout=60)
+        server = smtplib.SMTP(host, port, timeout=timeout)
         if security == "starttls":
             server.starttls(context=tls_context(acct))
+    if security != "none" or acct.get("smtp_auth"):
+        server.login(acct.get("smtp_user") or acct["user"], acct.get("smtp_password") or acct["password"])
+    return server, host, port, security
+
+
+def smtp_send(acct, msg):
+    server = smtp_connect(acct)[0]
     try:
-        if password and security != "none" or acct.get("smtp_auth"):
-            server.login(user, password)
         server.send_message(msg)
     finally:
         server.quit()
@@ -678,39 +682,36 @@ def cmd_send(cfg, args):
     deliver(acct, msg, args.draft, args.dry_run)
 
 
+def test_account(a):
+    """Sprawdza logowanie IMAP i SMTP konta. Zwraca liste (ok, opis)."""
+    results = []
+    try:
+        client = connect(a)
+        caps = {_text(c) for c in client.capabilities()}
+        info = client.select_folder(server_folder(client, a["folder"]), readonly=True)
+        unseen = len(client.search("UNSEEN"))
+        results.append((True, f"odbieranie: {info.get(b'EXISTS')} wiadomosci w {a['folder']} (nieprzeczytane: {unseen}) | "
+                              f"IDLE: {'tak' if 'IDLE' in caps else 'nie (odpytywanie co ' + str(a['poll_seconds']) + ' s)'} | "
+                              f"MOVE: {'tak' if 'MOVE' in caps else 'nie'}"))
+        client.logout()
+    except Exception as exc:
+        results.append((False, f"odbieranie (IMAP): {type(exc).__name__}: {exc}"))
+    try:
+        server, host, port, security = smtp_connect(a, timeout=20)
+        server.quit()
+        results.append((True, f"wysylanie: SMTP {host}:{port}, {security}"))
+    except Exception as exc:
+        results.append((False, f"wysylanie (SMTP - odpisywanie nie zadziala): {type(exc).__name__}: {exc}"))
+    return results
+
+
 def cmd_test(cfg):
     accts = accounts(cfg, include_disabled=True)
     if not accts:
         sys.exit("Brak kont w config.json (mail.accounts).")
     for a in accts:
-        try:
-            client = connect(a)
-            caps = {_text(c) for c in client.capabilities()}
-            info = client.select_folder(server_folder(client, a["folder"]), readonly=True)
-            unseen = len(client.search("UNSEEN"))
-            print(f"OK   {a['name']}: {info.get(b'EXISTS')} wiadomosci w {a['folder']} (nieprzeczytane: {unseen}) | "
-                  f"IDLE: {'tak' if 'IDLE' in caps else 'nie (odpytywanie co ' + str(a['poll_seconds']) + ' s)'} | "
-                  f"MOVE: {'tak' if 'MOVE' in caps else 'nie'} | "
-                  f"foldery Achai: {', '.join(server_folder(client, f) for f in set(a['handling'].values()) if f not in ('keep', 'delete')) or '-'}")
-            client.logout()
-        except Exception as exc:
-            print(f"BLAD {a['name']} (IMAP): {type(exc).__name__}: {exc}")
-        try:
-            security = a.get("smtp_security") or ("ssl" if a.get("security", "ssl") == "ssl" else "starttls")
-            host = a.get("smtp_host") or a["host"]
-            port = a.get("smtp_port") or {"ssl": 465, "starttls": 587}.get(security, 25)
-            if security == "ssl":
-                s = smtplib.SMTP_SSL(host, port, context=tls_context(a), timeout=20)
-            else:
-                s = smtplib.SMTP(host, port, timeout=20)
-                if security == "starttls":
-                    s.starttls(context=tls_context(a))
-            if security != "none" or a.get("smtp_auth"):
-                s.login(a.get("smtp_user") or a["user"], a.get("smtp_password") or a["password"])
-            s.quit()
-            print(f"OK   {a['name']}: wysylanie (SMTP {host}:{port}, {security})")
-        except Exception as exc:
-            print(f"BLAD {a['name']} (SMTP - odpisywanie nie zadziala): {type(exc).__name__}: {exc}")
+        for ok, text in test_account(a):
+            print(f"{'OK  ' if ok else 'BLAD'} {a['name']}: {text}")
 
 
 def watcher_pid():
