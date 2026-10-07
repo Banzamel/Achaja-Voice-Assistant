@@ -97,7 +97,7 @@ Note that only the control words depend on this model. The prompt itself is tran
 
 | You say | What happens |
 |---|---|
-| **wake word** → *beep* | Claude Code starts recording your prompt |
+| **wake word** → "Słucham" (`voice.wake_replies`) + *beep* | Claude Code starts recording your prompt (the reply is never recorded) |
 | your command… **end word** + a short pause | prompt submitted; Achaja confirms: "I'm on it" |
 | **"cancel"** | the recording is discarded |
 | **"new conversation"** | clears the context (`/clear`) |

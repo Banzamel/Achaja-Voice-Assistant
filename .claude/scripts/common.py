@@ -27,7 +27,7 @@ DETACHED_PROCESS = 0x00000008
 
 
 WAKE_KEYS = ("model", "phrases", "end", "cancel", "clear")
-VOICE_KEYS = ("tts_voice", "ack_phrases", "working_phrases")
+VOICE_KEYS = ("tts_voice", "ack_phrases", "working_phrases", "wake_replies")
 
 
 def load_config():

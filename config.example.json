@@ -13,6 +13,12 @@
     "end_match": 0.7,
     "_end_match": "Jak bardzo usłyszane słowo musi przypominać słowo końcowe (0-1). / How close a heard word must be to the end word.",
     "end_stable_seconds": 0.6,
+    "wake_confidence": 0.8,
+    "_wake_confidence": "Minimalna pewność rozpoznania słowa wybudzenia (0-1); wyżej = mniej fałszywych wybudzeń. / Minimum wake-word confidence; higher = fewer false wakes.",
+    "wake_isolated": true,
+    "_wake_isolated": "Słowo wybudzenia musi być wypowiedziane osobno (pauza przed i po). / The wake word must be spoken on its own.",
+    "screen_sync": true,
+    "_screen_sync": "Sprawdzaj na ekranie Claude Code, czy nagrywa (napis REC), zamiast zgadywać. / Read Claude Code's status bar to know whether it is recording.",
     "beep": true,
     "debug": true
   },
@@ -103,7 +109,8 @@
       "clear": ["nowa rozmowa"],
       "tts_voice": "pl-PL-ZofiaNeural",
       "ack_phrases": ["Już sprawdzam.", "Pracuję nad tym.", "Chwileczkę, szukam odpowiedzi.", "Już się tym zajmuję."],
-      "working_phrases": ["Nadal pracuję.", "Jeszcze chwila, pracuję.", "Wciąż nad tym pracuję."]
+      "working_phrases": ["Nadal pracuję.", "Jeszcze chwila, pracuję.", "Wciąż nad tym pracuję."],
+      "wake_replies": ["Słucham."]
     },
     "en": {
       "model": "vosk-model-small-en-us-0.15",
@@ -113,7 +120,8 @@
       "clear": ["new conversation"],
       "tts_voice": "en-US-JennyNeural",
       "ack_phrases": ["On it.", "Checking now.", "Give me a second.", "Working on it."],
-      "working_phrases": ["Still working.", "Almost there.", "Still on it."]
+      "working_phrases": ["Still working.", "Almost there.", "Still on it."],
+      "wake_replies": ["Yes?"]
     }
   }
 }
