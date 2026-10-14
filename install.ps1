@@ -80,9 +80,10 @@ if ($Autostart) {
     $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) "Achaja.lnk"
     $shell = New-Object -ComObject WScript.Shell
     $s = $shell.CreateShortcut($lnk)
-    $s.TargetPath = Join-Path $root "start-achaja.cmd"
+    $s.TargetPath = Join-Path $root ".venv\Scripts\pythonw.exe"   # okno aplikacji, bez konsoli
+    $s.Arguments = '"' + (Join-Path $root ".claude\scripts\app.py") + '" --minimized'
     $s.WorkingDirectory = $root
-    $s.WindowStyle = 7
+    $s.IconLocation = Join-Path $root "setup\assets\achaja.ico"
     $s.Description = "Achaja - nasłuch głosowy"
     $s.Save()
     Write-Host "Dodano do autostartu: $lnk"
@@ -104,5 +105,6 @@ if (-not $NoConfigure) {
 
 Write-Host ""
 Write-Host "Gotowe." -ForegroundColor Green
-Write-Host "  Start: start-achaja.cmd, potem powiedz słowo wybudzenia."
+Write-Host "  Start: menu Start > Achaja (albo .venv\Scripts\pythonw.exe .claude\scripts\app.py), potem powiedz słowo wybudzenia."
+Write-Host "  Tryb konsolowy (diagnostyka): start-achaja.cmd"
 Write-Host "  Zmiana ustawień później: menu Start > Achaja - ustawienia (albo .venv\Scripts\python.exe setup\configure.py)"

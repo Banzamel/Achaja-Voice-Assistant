@@ -70,6 +70,18 @@ def write_json(path, data):
     os.replace(tmp, path)
 
 
+CHAT_LOG = STATE / "chat.jsonl"
+
+
+def append_chat(role, text):
+    """Historia rozmowy dla okna aplikacji (hooki sesji Achai): role user / assistant."""
+    if not (text or "").strip():
+        return
+    import time
+    with open(CHAT_LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"role": role, "text": text.strip(), "at": time.time()}, ensure_ascii=False) + "\n")
+
+
 def pid_alive(pid):
     import ctypes
     handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, int(pid))  # QUERY_LIMITED_INFORMATION

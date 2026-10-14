@@ -12,7 +12,8 @@ import subprocess
 import sys
 import time
 
-from common import CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHONW, SCRIPTS, STATE, load_config, write_json
+from common import (CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHONW, SCRIPTS, STATE, append_chat, load_config,
+                    write_json)
 
 # bez slowa "Achaja" - glosnik + mikrofon biurkowy moglyby wybudzic nasluch
 MESSAGES = {
@@ -33,13 +34,15 @@ def main():
     event = data.get("hook_event_name")
     if event == "UserPromptSubmit":
         write_json(STATE / "achaja_state.json", {"state": "busy", "since": time.time()})
+        append_chat("user", data.get("prompt", ""))
         phrases = load_config()["voice"].get("ack_phrases") or []
         if phrases:
             say(random.choice(phrases))
     elif event == "Notification":
         text = MESSAGES.get(data.get("notification_type"))
         if text:
-            write_json(STATE / "achaja_state.json", {"state": "waiting", "since": time.time()})
+            write_json(STATE / "achaja_state.json", {"state": "waiting", "since": time.time(),
+                                                     "kind": data.get("notification_type")})
             say(text)
 
 

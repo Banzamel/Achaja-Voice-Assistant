@@ -1,5 +1,5 @@
 """Agenci projektow: uruchamia Claude w folderze projektu (z jego wlasnym .claude),
-pokazuje postep w osobnym oknie i zwraca wynik Achai.
+pokazuje postep w osobnym oknie (w aplikacji okienkowej: w zakladce "Agenci") i zwraca wynik Achai.
 
 Uzycie:
   agent.py list                                   projekty i aliasy
@@ -126,9 +126,11 @@ def cmd_run(args, cfg):
     out(f"Start: {time.strftime('%Y-%m-%d %H:%M:%S')}  |  {'kontynuacja rozmowy' if resumed else 'nowa rozmowa'}")
     out(f"Zlecenie: {prompt}\n")
 
-    viewer = subprocess.Popen([str(PYTHON), str(SCRIPTS / "agent_view.py"), str(log_path), name,
-                               str(cfg["agents"].get("close_window_after_seconds", 300))],
-                              creationflags=CREATE_NEW_CONSOLE)
+    # w aplikacji okienkowej postep agenta widac w zakladce "Agenci" - bez dodatkowego okna konsoli
+    if not os.environ.get("ACHAJA_APP") and cfg["agents"].get("show_window", True):
+        subprocess.Popen([str(PYTHON), str(SCRIPTS / "agent_view.py"), str(log_path), name,
+                          str(cfg["agents"].get("close_window_after_seconds", 300))],
+                         creationflags=CREATE_NEW_CONSOLE)
 
     proc = subprocess.Popen(cmd, cwd=str(path), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, creationflags=CREATE_NO_WINDOW,

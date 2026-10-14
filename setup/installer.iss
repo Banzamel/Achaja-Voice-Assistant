@@ -91,13 +91,14 @@ Source: "..\build\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 Source: "..\build\runtime\*"; DestDir: "{app}\runtime"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
+; Achaja to okno aplikacji (pythonw, bez konsoli); start-achaja.cmd zostaje jako tryb konsolowy do diagnostyki
+Name: "{autoprograms}\Achaja"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\.claude\scripts\app.py"""; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
 Name: "{autoprograms}\{cm:ConfigName}"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\setup\configure.py"""; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
-Name: "{autodesktop}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Tasks: desktopicon
-Name: "{userstartup}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Flags: runminimized; Tasks: autostart
+Name: "{autodesktop}\Achaja"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\.claude\scripts\app.py"""; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Tasks: desktopicon
+Name: "{userstartup}\Achaja"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\.claude\scripts\app.py"" --minimized"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Tasks: autostart
 
 [Run]
-Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; Description: "{cm:LaunchNow}"; Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\.claude\scripts\app.py"""; WorkingDir: "{app}"; Description: "{cm:LaunchNow}"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""{code:StopCommand}"""; Flags: runhidden; RunOnceId: "StopAchaja"

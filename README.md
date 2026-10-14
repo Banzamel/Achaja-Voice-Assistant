@@ -28,6 +28,20 @@ The key design decision: **the prompt itself is transcribed by Claude Code**, no
 
 Keystrokes are written straight into the Claude Code console input buffer (`WriteConsoleInputW`), so **the window does not need focus** — you can keep working while Achaja listens.
 
+### The Achaja window
+
+Achaja starts as a normal Windows program (`app.py`, run by `pythonw` — no console windows):
+
+- **Conversation** — your prompts and Achaja's answers (the spoken `[GŁOS]` part marked ♪), filled by the session hooks; type into the box and press Enter to send a message without speaking.
+- **Agents** — every project agent with live progress and its final report, plus *Stop agent*. Agent runs no longer open their own console windows.
+- **Log** — what the listener hears and does.
+- A status line (listening, recording, working, speaking, waiting for approval), a **Talk** button (start / send a recording without the wake word) and **Pause listening**.
+- The Claude Code session runs in a **hidden console**. When Claude asks for a permission it shows up by itself and hides again after the answer; *Achaja → Show / hide the Claude console* toggles it any time.
+- Closing the window keeps Achaja in the notification area (tray icon: show, talk, pause, quit); *Quit* also closes the hidden session. If the session dies, it restarts and continues the same conversation.
+- Keys and screen reads go to the hidden console from inside the app process (no helper Python process every second), so the listener reacts faster and uses less CPU.
+
+`start-achaja.cmd` still runs the old console mode (listener window + visible Claude window), handy for troubleshooting. Settings for the window live under `app` in `config.json` (`hide_console`, `show_console_on_prompt`, `tray`, `close_to_tray`, `restart_closed_session`).
+
 ## Features
 
 - **Hands-free control** — wake word, dictation, end word, automatic submit.
@@ -57,7 +71,7 @@ Download `AchajaSetup-<version>.exe` from [Releases](https://github.com/Banzamel
 - asks for the language and lets you pick the **modules** — voice assistant (required), project agents, mail, Home Assistant — and whether Achaja starts with Windows;
 - installs for the current user only (no administrator rights) into `%LOCALAPPDATA%\Programs\Achaja`, with its own portable Python — nothing is installed system-wide;
 - lets you choose the install folder, downloads the libraries and the speech model, then opens a **step-by-step settings window**: general, voice (microphone and output picked from your devices, Google Cast speaker search), project folders (folder picker), mail accounts (add / edit / *Test*) and mail rules, Home Assistant address and token, summary;
-- adds "Achaja" and "Achaja – settings" to the Start menu and a normal uninstaller to *Apps & features* (it asks whether to keep your settings and data).
+- adds "Achaja" (the app window) and "Achaja – settings" to the Start menu and a normal uninstaller to *Apps & features* (it asks whether to keep your settings and data).
 
 The file is not code-signed, so Windows SmartScreen shows a warning on the first run (*More info → Run anyway*). Unattended install: `AchajaSetup.exe /SILENT /COMPONENTS="voice,mail" /noconfigure=1`.
 
@@ -75,7 +89,7 @@ Then:
 
 1. Change settings any time: Start menu → *Achaja – settings*, or `.venv\Scripts\python.exe setup\configure.py` (or edit `config.json` directly).
 2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
-3. Run `start-achaja.cmd`. Two windows open: the listener and the Claude Code session named "Achaja".
+3. Start Achaja from the Start menu, or run `.venv\Scripts\pythonw.exe .claude\scripts\app.py` (add `--continue` to resume the last conversation). One window opens; the Claude Code session runs hidden. `start-achaja.cmd` is the console mode with two visible windows.
 
 ### Language
 
@@ -184,7 +198,8 @@ Everything lives in `config.json` (created from `config.example.json`): micropho
 | The end word doesn't submit | the listener window shows what it heard — lower `wake.end_match` |
 | The prompt submits too early | raise `wake.end_match` or `wake.end_stable_seconds` |
 | No speech is heard | `voice.outputs`, `state\speak_error.txt`; with Bluetooth headsets pick the "headset" (HFP) output |
-| An agent doesn't answer | the "Agent: …" window, `state\agents\<project>.log` |
+| An agent doesn't answer | the *Agents* tab (or the "Agent: …" window in console mode), `state\agents\<project>.log` |
+| A console window still shows up | Windows Terminal set as the default terminal may ignore the hidden start; set *Windows Console Host* in Terminal → Settings → Startup → Default terminal application |
 
 ## Limitations
 
