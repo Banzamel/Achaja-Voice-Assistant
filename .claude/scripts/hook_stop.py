@@ -11,7 +11,7 @@ import sys
 import time
 
 from common import (CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHONW, SCRIPTS, STATE,
-                    write_json)
+                    append_chat, write_json)
 
 MARKER = re.compile(r"^\s*\[(?:G[ŁL]OS|VOICE)\]\s*:?\s*", re.IGNORECASE | re.MULTILINE)
 
@@ -28,6 +28,7 @@ def main():
     data = json.loads(sys.stdin.buffer.read().decode("utf-8-sig") or "{}")
     if os.environ.get("ACHAJA_SESSION"):
         write_json(STATE / "achaja_state.json", {"state": "idle", "since": time.time()})
+        append_chat("assistant", data.get("last_assistant_message", ""))
     text = voice_text(data.get("last_assistant_message", ""))
     if text:
         (STATE / "last_voice.txt").write_text(text, encoding="utf-8")

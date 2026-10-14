@@ -13,6 +13,7 @@ config.json
 .claude/settings.local.json
 .claude/CLAUDE.local.md
 
-# budowanie instalatora
+# budowanie instalatora i Achaja.exe
+/Achaja.exe
 build/
 dist/

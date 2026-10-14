@@ -75,27 +75,40 @@ if (-not (Test-Path $settings) -or (Get-Content $settings -Raw -Encoding UTF8) -
     Write-Host "Utworzono .claude\settings.json (hooki odpowiedzi głosowej)."
 }
 
-# 6. Opcjonalnie: autostart
+# 6. Achaja.exe (okno programu bez konsoli) - instalator .exe przynosi gotowy plik, z kodu źródłowego go kompilujemy
+$exe = Join-Path $root "Achaja.exe"
+if (-not (Test-Path $exe)) {
+    try { & (Join-Path $root "setup\build-launcher.ps1") -Out $exe }
+    catch { Write-Host "Nie udało się zbudować Achaja.exe ($_) - użyj .venv\Scripts\pythonw.exe .claude\scripts\app.py" -ForegroundColor Yellow }
+}
+
+# 7. Opcjonalnie: autostart
 if ($Autostart) {
     $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) "Achaja.lnk"
     $shell = New-Object -ComObject WScript.Shell
     $s = $shell.CreateShortcut($lnk)
-    $s.TargetPath = Join-Path $root "start-achaja.cmd"
+    if (Test-Path $exe) {
+        $s.TargetPath = $exe
+        $s.Arguments = "--minimized"
+    } else {
+        $s.TargetPath = Join-Path $root ".venv\Scripts\pythonw.exe"   # okno aplikacji, bez konsoli
+        $s.Arguments = '"' + (Join-Path $root ".claude\scripts\app.py") + '" --minimized'
+    }
     $s.WorkingDirectory = $root
-    $s.WindowStyle = 7
+    $s.IconLocation = Join-Path $root "setup\assets\achaja.ico"
     $s.Description = "Achaja - nasłuch głosowy"
     $s.Save()
     Write-Host "Dodano do autostartu: $lnk"
 }
 
-# 7. Claude Code - wymagany do działania (dyktowanie + sesja Achai)
+# 8. Claude Code - wymagany do działania (dyktowanie + sesja Achai)
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Host ""
     Write-Host "UWAGA: nie znaleziono Claude Code (polecenie 'claude')." -ForegroundColor Yellow
     Write-Host "  Zainstaluj go: https://claude.com/claude-code  i zaloguj się kontem claude.ai." -ForegroundColor Yellow
 }
 
-# 8. Okienkowy kreator ustawień krok po kroku (mikrofon, głośnik, projekty, poczta, Home Assistant)
+# 9. Okienkowy kreator ustawień krok po kroku (mikrofon, głośnik, projekty, poczta, Home Assistant)
 if (-not $NoConfigure) {
     Write-Host ""
     Write-Host "Otwieram okno ustawień - przejdź kroki i kliknij Zapisz."
@@ -104,5 +117,6 @@ if (-not $NoConfigure) {
 
 Write-Host ""
 Write-Host "Gotowe." -ForegroundColor Green
-Write-Host "  Start: start-achaja.cmd, potem powiedz słowo wybudzenia."
-Write-Host "  Zmiana ustawień później: menu Start > Achaja - ustawienia (albo .venv\Scripts\python.exe setup\configure.py)"
+Write-Host "  Start: Achaja.exe (albo .venv\Scripts\pythonw.exe .claude\scripts\app.py), potem powiedz słowo wybudzenia."
+Write-Host "  Tryb konsolowy (diagnostyka): start-achaja.cmd"
+Write-Host "  Zmiana ustawień później: menu Achaja > Ustawienia w oknie programu (albo Achaja.exe --settings)"

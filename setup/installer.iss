@@ -91,13 +91,16 @@ Source: "..\build\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 Source: "..\build\runtime\*"; DestDir: "{app}\runtime"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
-Name: "{autoprograms}\{cm:ConfigName}"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\setup\configure.py"""; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
-Name: "{autodesktop}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Tasks: desktopicon
-Name: "{userstartup}\Achaja"; Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"; Flags: runminimized; Tasks: autostart
+; Achaja.exe to okno aplikacji (bez konsoli); start-achaja.cmd zostaje jako tryb konsolowy do diagnostyki
+Name: "{autoprograms}\Achaja"; Filename: "{app}\Achaja.exe"; WorkingDir: "{app}"
+Name: "{autoprograms}\{cm:ConfigName}"; Filename: "{app}\Achaja.exe"; Parameters: "--settings"; WorkingDir: "{app}"; IconFilename: "{app}\setup\assets\achaja.ico"
+Name: "{autodesktop}\Achaja"; Filename: "{app}\Achaja.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userstartup}\Achaja"; Filename: "{app}\Achaja.exe"; Parameters: "--minimized"; WorkingDir: "{app}"; Tasks: autostart
 
 [Run]
-Filename: "{app}\start-achaja.cmd"; WorkingDir: "{app}"; Description: "{cm:LaunchNow}"; Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\Achaja.exe"; WorkingDir: "{app}"; Description: "{cm:LaunchNow}"; Flags: postinstall nowait skipifsilent
+; aktualizacja z aplikacji (/SILENT /relaunch=1) - po instalacji Achaja startuje sama
+Filename: "{app}\Achaja.exe"; WorkingDir: "{app}"; Flags: nowait; Check: ShouldRelaunch
 
 [UninstallRun]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""{code:StopCommand}"""; Flags: runhidden; RunOnceId: "StopAchaja"
@@ -117,6 +120,11 @@ begin
   { zatrzymuje nasłuch i pocztę Achai z tego folderu (pliki są wtedy zablokowane) }
   Result := 'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like ''' +
     ExpandConstant('{app}') + '\*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }';
+end;
+
+function ShouldRelaunch(): Boolean;
+begin
+  Result := WizardSilent() and (ExpandConstant('{param:relaunch|0}') = '1');
 end;
 
 function InitializeSetup(): Boolean;
@@ -149,6 +157,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
+  ShowCmd: Integer;
   Params: String;
 begin
   if CurStep <> ssPostInstall then Exit;
@@ -159,7 +168,9 @@ begin
     ' -Modules ' + SelectedModules();
   if WizardSilent() or (ExpandConstant('{param:noconfigure|0}') = '1') then
     Params := Params + ' -NoConfigure';
-  if not Exec('powershell.exe', Params, ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, Code) or (Code <> 0) then
+  ShowCmd := SW_SHOW;
+  if WizardSilent() then ShowCmd := SW_HIDE;   { aktualizacja w tle - bez okna PowerShell }
+  if not Exec('powershell.exe', Params, ExpandConstant('{app}'), ShowCmd, ewWaitUntilTerminated, Code) or (Code <> 0) then
     MsgBox(FmtMessage(CustomMessage('SetupFailed'), [IntToStr(Code)]), mbError, MB_OK);
 end;
 

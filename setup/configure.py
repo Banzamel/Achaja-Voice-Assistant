@@ -31,6 +31,7 @@ SETTINGS_LOCAL = ROOT / ".claude" / "settings.local.json"
 MODULES = ("voice", "agents", "mail", "ha")
 OUTPUT_NAMES = {"pl": ("słuchawki", "głośnik"), "en": ("headphones", "speaker")}
 MAIL_KEYS = ("important_hint", "quiet_hours", "delete_after_days")
+APP_FLAGS = ("update_check", "update_install_on_quit", "close_to_tray", "show_console_on_prompt")
 
 
 def load_raw():
@@ -80,6 +81,7 @@ def state_for_form(modules):
         "modules": modules,
         "language": lang,
         "achaja": cfg.get("achaja", {}),
+        "app": {k: cfg.get("app", {}).get(k, True) for k in APP_FLAGS},
         "voice": {
             "microphone": cfg.get("wake", {}).get("microphone", ""),
             "local_device": (local or {}).get("device", ""),
@@ -118,6 +120,8 @@ def apply_form(data, modules):
     cfg["language"] = lang
     if data.get("achaja"):
         cfg.setdefault("achaja", {}).update({k: v for k, v in data["achaja"].items() if v})
+    if data.get("app"):
+        cfg.setdefault("app", {}).update({k: bool(v) for k, v in data["app"].items() if k in APP_FLAGS})
 
     if "voice" in modules:
         v = data["voice"]
@@ -247,6 +251,10 @@ TEXT = {
         "step": "Krok {} z {}",
         "general": "Ogólne", "general_sub": "Język asystentki oraz model, na którym pracuje Achaja.",
         "language": "Język", "model": "Model Achai", "effort": "Wysiłek (szybkość / dokładność)",
+        "app_update_check": "Sprawdzaj aktualizacje i pobieraj je w tle",
+        "app_update_install_on_quit": "Instaluj pobraną aktualizację przy zamknięciu Achai",
+        "app_close_to_tray": "Zamknięcie okna chowa Achaję do zasobnika",
+        "app_show_console_on_prompt": "Pokazuj konsolę Claude, gdy pyta o zgodę",
         "voice": "Głos i mikrofon", "voice_sub": "Mikrofon do słowa wybudzenia i wyjście, na którym Achaja mówi.",
         "mic": "Mikrofon", "out": "Wyjście głosu (lokalne)", "rate": "Tempo mowy (np. +15%)", "default_dev": "(domyślne systemowe)",
         "cast": "Mów także przez głośnik Google Cast / Google Home", "cast_name": "Nazwa głośnika", "cast_host": "Adres IP głośnika",
@@ -277,6 +285,10 @@ TEXT = {
         "step": "Step {} of {}",
         "general": "General", "general_sub": "The assistant's language and the model Achaja runs on.",
         "language": "Language", "model": "Achaja model", "effort": "Effort (speed / accuracy)",
+        "app_update_check": "Check for updates and download them in the background",
+        "app_update_install_on_quit": "Install a downloaded update when Achaja quits",
+        "app_close_to_tray": "Closing the window keeps Achaja in the tray",
+        "app_show_console_on_prompt": "Show the Claude console when it asks for approval",
         "voice": "Voice and microphone", "voice_sub": "The microphone for the wake word and the output Achaja speaks on.",
         "mic": "Microphone", "out": "Voice output (local)", "rate": "Speech rate (e.g. +15%)", "default_dev": "(system default)",
         "cast": "Also speak through a Google Cast / Google Home speaker", "cast_name": "Speaker name", "cast_host": "Speaker IP address",
@@ -400,6 +412,7 @@ class Wizard:
             "ha_token": tk.StringVar(),
         }
         self.announce = {c: tk.BooleanVar(value=c in m["announce"]) for c in ("important", "threat", "ad", "spam")}
+        self.app_flags = {k: tk.BooleanVar(value=s["app"][k]) for k in APP_FLAGS}
         self.hint_text = m.get("important_hint") or ""
         self.roots = list(s["agents"]["project_roots"])
 
@@ -482,6 +495,9 @@ class Wizard:
         self.field(p, self.t["language"], self.v["language"], 0, values=["pl", "en"], width=20)
         self.field(p, self.t["model"], self.v["model"], 2, values=["sonnet", "opus", "haiku"], width=20)
         self.field(p, self.t["effort"], self.v["effort"], 4, values=["low", "medium", "high"], width=20)
+        for i, key in enumerate(APP_FLAGS):  # okno programu: aktualizacje, zasobnik, konsola Claude
+            self.ttk.Checkbutton(p, text=self.t["app_" + key], variable=self.app_flags[key]).grid(
+                row=6 + i, column=0, sticky="w", pady=(0, 4))
 
     def page_voice(self, p):
         ttk, dev = self.ttk, self.state["devices"]
@@ -737,6 +753,7 @@ class Wizard:
         return {
             "language": v["language"].get(),
             "achaja": {"model": v["model"].get(), "effort": v["effort"].get()},
+            "app": {k: b.get() for k, b in self.app_flags.items()},
             "voice": {"microphone": self.device(v["mic"].get()), "local_device": self.device(v["out"].get()),
                       "rate": v["rate"].get(), "default": "cast" if v["cast_default"].get() else "local",
                       "cast": {"enabled": v["cast_on"].get(), "name": v["cast_name"].get(), "host": v["cast_host"].get()}},

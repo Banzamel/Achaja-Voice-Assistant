@@ -23,6 +23,21 @@
     "debug": true
   },
 
+  "app": {
+    "_comment": "Okno aplikacji (app.py). / The app window (app.py).",
+    "hide_console": true,
+    "_hide_console": "Sesja Claude Code działa w ukrytej konsoli; pokażesz ją z menu Achaja. / Run the Claude Code session in a hidden console; show it from the Achaja menu.",
+    "show_console_on_prompt": true,
+    "_show_console_on_prompt": "Gdy Claude pyta o zgodę, konsola pokazuje się sama i chowa po odpowiedzi. / Show the console while Claude waits for a permission answer.",
+    "tray": true,
+    "close_to_tray": true,
+    "restart_closed_session": true,
+    "update_check": true,
+    "update_auto_download": true,
+    "update_install_on_quit": true,
+    "_update": "Nowe wydania z GitHuba pobierają się w tle i instalują przy zamknięciu Achai (albo przyciskiem 'Zainstaluj teraz'). / New GitHub releases download in the background and install when Achaja quits."
+  },
+
   "achaja": {
     "_comment": "Model i wysiłek głównej sesji: sonnet+low = szybko, opus+medium = dokładniej. / Main session model and effort.",
     "model": "sonnet",
@@ -48,6 +63,8 @@
     "_project_roots": "Foldery z projektami; każdy podfolder to projekt z własnym agentem. / Folders holding your projects.",
     "aliases": {"alias mówiony": "nazwa-folderu-projektu"},
     "permission_mode": "auto",
+    "show_window": true,
+    "_show_window": "Okno konsoli 'Agent: <projekt>' z postępem (w aplikacji okienkowej postęp jest w zakładce Agenci i okno się nie otwiera). / Console progress window; in the app the Agents tab replaces it.",
     "close_window_after_seconds": 300
   },
 

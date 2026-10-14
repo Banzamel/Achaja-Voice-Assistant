@@ -23,7 +23,7 @@ Wywołaj narzędziem PowerShell z `run_in_background: true`:
 & ".venv\Scripts\python.exe" ".claude\scripts\agent.py" run <projekt> --prompt-file "state\agents\zlecenie-<projekt>.txt"
 ```
 - Dodaj `--new`, gdy użytkownik chce zacząć z agentem od zera; bez tego agent kontynuuje poprzednią rozmowę w tym projekcie.
-- Skrypt otwiera okno „Agent: <projekt>” z postępem na żywo, a na końcu wypisuje raport.
+- Postęp na żywo widać w zakładce „Agenci” okna Achai (w trybie konsolowym skrypt otwiera okno „Agent: <projekt>”), a na końcu skrypt wypisuje raport.
 - Jeśli agent tego projektu już pracuje, skrypt odmówi — powiedz o tym użytkownikowi.
 
 Od razu odpowiedz krótko, np. `[GŁOS] Zleciłam agentowi projektu vision poprawę formularza. Dam znać, gdy skończy.`
