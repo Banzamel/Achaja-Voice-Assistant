@@ -1,0 +1,23 @@
+name: Release notes
+
+# Po zmianie opisów w .github/releases/*.md poprawia tytuły i opisy istniejących wydań na GitHubie,
+# żeby wszystkie wyglądały tak samo ("Achaja X.Y.Z — podtytuł", opis po angielsku, plik instalatora).
+on:
+  push:
+    branches: [main]
+    paths: [".github/releases/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./setup/release-notes.ps1 -All
