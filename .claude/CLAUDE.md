@@ -44,6 +44,8 @@ Użytkownik czeka na odpowiedź w ciszy — liczy się szybkość.
 - Programy uruchamiaj przez PowerShell, np. `Start-Process calc`, `Start-Process notepad`, `Start-Process "https://..."`.
 - Obliczenia rób sama i podaj wynik. Jeśli użytkownik chce wynik w programie (kalkulator), uruchom go i podaj wynik głosowo — do kalkulatora nie wpisuj.
 - „Powtórz” → powtórz ostatnią sekcję `[GŁOS]` (jest też w `state/last_voice.txt`).
+- „Sprawdź aktualizacje” / „jaka to wersja” → `& ".venv\Scripts\python.exe" ".claude\scripts\update.py" check`. Okno Achai samo pobiera nowe wydania i instaluje je przy zamknięciu.
+- „Zaktualizuj się” → najpierw zapytaj głosowo; po „tak” `update.py install` (instalator działa w tle, zamyka Achaję i uruchamia ją ponownie w nowej wersji — powiedz to, zanim go uruchomisz).
 
 ## Wyjście głosu (np. słuchawki / głośnik Google Cast)
 Przełączanie: `& ".venv\Scripts\python.exe" ".claude\scripts\output.py" <komenda>`
@@ -79,7 +81,7 @@ Gdy użytkownik chce pracy nad projektem („niech agent od X poprawi…”, „
 
 ## Struktura projektu
 - `config.json` — słowa kluczowe, głos, wyjścia audio, foldery projektów, aliasy, opcjonalnie Home Assistant i konta pocztowe (plik lokalny, nie trafia do repozytorium).
-- `.claude/scripts/` — `app.py` (okno aplikacji: rozmowa, agenci, dziennik; nasłuch w wątku, ta sesja w ukrytej konsoli), `listener.py` (nasłuch), `console.py` + `inject.py` + `screen.py` (klawisze i odczyt ekranu konsoli), `speak.py` + `audio_out.py` (mowa), `output.py` (wybór wyjścia), `hook_*.py` (hooki), `agent.py` + `agent_view.py` (agenci projektów), `mail.py` + `mail_watch.py` (poczta).
-- `setup/` — `configure.py` (okienkowy kreator ustawień krok po kroku: mikrofon, głośnik, projekty, konta pocztowe, Home Assistant; „otwórz ustawienia” → `Start-Process ".venv\Scripts\pythonw.exe" "setup\configure.py"`), `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), `installer.iss` + `build-installer.ps1` + `assets/` (instalator .exe, ikona i grafika), szablon ustawień.
+- `.claude/scripts/` — `app.py` (okno aplikacji: rozmowa, agenci, dziennik; nasłuch w wątku, ta sesja w ukrytej konsoli; uruchamia je `Achaja.exe`), `update.py` (aktualizacje z wydań na GitHubie), `listener.py` (nasłuch), `console.py` + `inject.py` + `screen.py` (klawisze i odczyt ekranu konsoli), `speak.py` + `audio_out.py` (mowa), `output.py` (wybór wyjścia), `hook_*.py` (hooki), `agent.py` + `agent_view.py` (agenci projektów), `mail.py` + `mail_watch.py` (poczta).
+- `setup/` — `configure.py` (okienkowy kreator ustawień krok po kroku: mikrofon, głośnik, projekty, konta pocztowe, Home Assistant; „otwórz ustawienia” → `Start-Process ".venv\Scripts\pythonw.exe" "setup\configure.py"`), `set_app_audio.py` (mikrofon/głośnik dla wskazanego programu), `ha_areas.py` (obszary w Home Assistant), `installer.iss` + `build-installer.ps1` + `assets/` (instalator .exe, ikona i grafika), `launcher/` + `build-launcher.ps1` (Achaja.exe), `release.ps1` (nowe wydanie), szablon ustawień.
 - `state/` — pliki robocze (sesje agentów, logi, tokeny); nie publikuj ich.
 - Python z `.venv` — nie instaluj pakietów globalnie, tylko do `.venv` (`.venv\Scripts\python.exe -m pip install ...`).

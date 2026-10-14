@@ -8,6 +8,8 @@ Uruchamiaj przez pythonw (bez okna konsoli):
 Nasluch (listener.run) dziala w watku tej aplikacji, a sesja Claude Code w ukrytej konsoli -
 nie widac zadnych okien terminala. Konsole mozna pokazac z menu (np. przy pytaniu o zgode
 pokazuje sie sama). Rozmowe wypelniaja hooki sesji (state/chat.jsonl), agentow - state/agents/.
+Program sam sprawdza wydania na GitHubie, pobiera nowa wersje w tle i instaluje ja na koncu
+(przyciskiem albo przy zamknieciu) - update.py. Zmiana config.json restartuje nasluch.
 """
 import argparse
 import ctypes
@@ -20,13 +22,16 @@ import threading
 import time
 
 import listener
+import update
 from common import (AGENTS_STATE, CHAT_LOG, CREATE_NO_WINDOW, DETACHED_PROCESS, PYTHON, PYTHONW, ROOT, SCRIPTS,
-                    STATE, load_config, pid_alive, read_json, single_instance, write_json)
+                    STATE, __version__, load_config, pid_alive, read_json, single_instance, write_json)
 
 MARKER = re.compile(r"^\s*\[(?:G[ŁL]OS|VOICE)\]\s*:?\s*", re.IGNORECASE | re.MULTILINE)
 SHOW_FLAG = STATE / "app_show.json"  # druga kopia programu prosi pierwsza o pokazanie okna
 WINDOW_FILE = STATE / "app_window.json"
 ICON = ROOT / "setup" / "assets" / "achaja.ico"
+CONFIG = ROOT / "config.json"
+UPDATE_FIRST, UPDATE_EVERY = 20, 6 * 3600  # sekundy: pierwsze sprawdzenie po starcie, potem co 6 godzin
 ACCENT = "#6c4cd4"
 
 TEXT = {
@@ -45,6 +50,14 @@ TEXT = {
         "stop_agent": "Przerwij agenta", "working": "pracuje {} min", "no_agents": "Brak agentów.",
         "quit_ask": "Zakończyć Achaję? Nasłuch i ukryta sesja Claude zostaną zamknięte.",
         "already": "Achaja już działa w oknie konsoli (start-achaja.cmd).",
+        "edit_config": "Edytuj plik konfiguracji", "check_update": "Sprawdź aktualizacje", "about": "O programie",
+        "about_text": "Achaja {}\nGłosowa asystentka dla Claude Code.\n\ngithub.com/Banzamel/Achaja-Voice-Assistant",
+        "upd_downloading": "Pobieram nową wersję {}… {}%", "upd_ready": "Nowa wersja {} jest gotowa — zainstaluję ją przy zamknięciu Achai.",
+        "upd_ready_manual": "Nowa wersja {} jest gotowa do instalacji.", "upd_install": "Zainstaluj teraz",
+        "upd_source": "Na GitHubie jest nowa wersja {} (kopia z gita: git pull).", "upd_open": "Otwórz stronę",
+        "upd_none": "Masz najnowszą wersję ({}).", "upd_error": "Nie udało się sprawdzić aktualizacji: {}",
+        "upd_noasset": "Wydanie {} nie ma jeszcze instalatora — spróbuję później.",
+        "config_changed": "Zmieniono ustawienia — uruchamiam nasłuch ponownie.",
     },
     "en": {
         "chat": "Conversation", "agents": "Agents", "log": "Log", "send": "Send", "talk": "Talk",
@@ -61,6 +74,14 @@ TEXT = {
         "stop_agent": "Stop agent", "working": "working {} min", "no_agents": "No agents.",
         "quit_ask": "Quit Achaja? The listener and the hidden Claude session will be closed.",
         "already": "Achaja is already running in a console window (start-achaja.cmd).",
+        "edit_config": "Edit the configuration file", "check_update": "Check for updates", "about": "About",
+        "about_text": "Achaja {}\nA voice assistant for Claude Code.\n\ngithub.com/Banzamel/Achaja-Voice-Assistant",
+        "upd_downloading": "Downloading the new version {}… {}%", "upd_ready": "Version {} is ready — it installs when you quit Achaja.",
+        "upd_ready_manual": "Version {} is ready to install.", "upd_install": "Install now",
+        "upd_source": "Version {} is on GitHub (git checkout: git pull).", "upd_open": "Open page",
+        "upd_none": "You have the latest version ({}).", "upd_error": "Could not check for updates: {}",
+        "upd_noasset": "Release {} has no installer yet — I will try later.",
+        "config_changed": "Settings changed — restarting the listener.",
     },
 }
 COLORS = {"idle": "#2e9b57", "rec": "#d93a3a", "busy": "#d98c1a", "wait": "#d98c1a", "speak": ACCENT,
@@ -121,6 +142,13 @@ class App:
         self.quitting = False
         self.ticks = 0
         self.last_start = 0.0
+        self.update_info = self.update_path = None
+        self.update_msg = None  # (tekst, przycisk) dla paska aktualizacji - ustawia watek, rysuje tick()
+        self.update_busy = False
+        try:
+            self.config_mtime = CONFIG.stat().st_mtime
+        except OSError:
+            self.config_mtime = 0
         listener.LOG_SINKS.append(self.logs.put)
 
         self.root = root = tk.Tk()
@@ -149,6 +177,8 @@ class App:
             root.after(0, self.hide_window)
         self.start_listener(args.resume)
         root.after(200, self.poll)
+        if self.opts.get("update_check", True):
+            root.after(UPDATE_FIRST * 1000, self.scheduled_update_check)
 
     # --- budowa okna ---
     def build_menu(self):
@@ -161,6 +191,10 @@ class App:
         m.add_command(label=t["console"], command=self.toggle_console)
         m.add_command(label=t["restart"], command=self.restart_listener)
         m.add_command(label=t["settings"], command=self.open_settings)
+        m.add_command(label=t["edit_config"], command=self.edit_config)
+        m.add_separator()
+        m.add_command(label=t["check_update"], command=lambda: self.check_update(manual=True))
+        m.add_command(label=t["about"], command=self.about)
         m.add_separator()
         m.add_command(label=t["quit"], command=self.quit)
         bar.add_cascade(label=t["menu"], menu=m)
@@ -180,6 +214,12 @@ class App:
         self.cancel_btn = ttk.Button(head, text=t["cancel"], command=lambda: self.request("cancel"))
         self.talk_btn = ttk.Button(head, text=t["talk"], command=self.talk)
         self.talk_btn.pack(side="right", padx=(0, 6))
+        # pasek aktualizacji - pokazuje sie, gdy jest nowa wersja
+        self.upd_bar = ttk.Frame(self.root, padding=(12, 0, 12, 8))
+        self.upd_label = ttk.Label(self.upd_bar, foreground=ACCENT)
+        self.upd_label.pack(side="left")
+        self.upd_btn = ttk.Button(self.upd_bar, command=self.update_action)
+        self.upd_shown = None
 
     def build_chat(self, nb):
         tk, ttk, t = self.tk, self.ttk, self.t
@@ -430,6 +470,83 @@ class App:
             console.set_visible(pid, not console.is_visible(pid))
             self.auto_shown = False
 
+    def edit_config(self):
+        subprocess.Popen(["notepad.exe", str(CONFIG)], creationflags=DETACHED_PROCESS, close_fds=True)
+
+    def about(self):
+        from tkinter import messagebox
+        messagebox.showinfo("Achaja", self.t["about_text"].format(__version__), parent=self.root)
+
+    # --- aktualizacje ---
+    def scheduled_update_check(self):
+        self.check_update(manual=False)
+        self.root.after(UPDATE_EVERY * 1000, self.scheduled_update_check)
+
+    def check_update(self, manual):
+        """Sprawdza wydania w tle; nowa wersja jest od razu pobierana (update_auto_download)."""
+        if self.update_busy:
+            return
+        self.update_busy = True
+        t = self.t
+
+        def work():
+            try:
+                info = update.check()
+                if not info:
+                    if manual:
+                        self.update_msg = (t["upd_none"].format(__version__), None)
+                    return
+                self.update_info = info
+                if not update.installed():
+                    self.update_msg = (t["upd_source"].format(info["version"]), "open")
+                    return
+                if not info.get("url"):
+                    if manual:
+                        self.update_msg = (t["upd_noasset"].format(info["version"]), None)
+                    return
+                path = update.downloaded(info)
+                if not path and (manual or self.opts.get("update_auto_download", True)):
+                    def progress(frac):
+                        self.update_msg = (t["upd_downloading"].format(info["version"], int(frac * 100)), None)
+                    path = update.download(info, progress)
+                if path:
+                    self.update_path = path
+                    key = "upd_ready" if self.opts.get("update_install_on_quit", True) else "upd_ready_manual"
+                    self.update_msg = (t[key].format(info["version"]), "install")
+                    self.logs.put(f"{time.strftime('%H:%M:%S')} Pobrano nowa wersje {info['version']}: {path}")
+            except Exception as exc:
+                self.logs.put(f"{time.strftime('%H:%M:%S')} Aktualizacja: {exc!r}")
+                if manual:
+                    self.update_msg = (t["upd_error"].format(exc), None)
+            finally:
+                self.update_busy = False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def show_update_bar(self):
+        msg = self.update_msg
+        if msg == self.upd_shown:
+            return
+        self.upd_shown = msg
+        if not msg:
+            self.upd_bar.pack_forget()
+            return
+        text, action = msg
+        self.upd_label.configure(text=text)
+        if action:
+            self.upd_btn.configure(text=self.t["upd_install"] if action == "install" else self.t["upd_open"])
+            self.upd_btn.pack(side="right")
+        else:
+            self.upd_btn.pack_forget()
+        if not self.upd_bar.winfo_ismapped():
+            self.upd_bar.pack(fill="x", after=self.dot.master)
+
+    def update_action(self):
+        if self.update_msg and self.update_msg[1] == "install" and self.update_path:
+            self.quit(ask=False, install_now=True)
+        elif self.update_info:
+            os.startfile(self.update_info["page"])
+
     # --- petla okna ---
     def poll(self):
         try:
@@ -459,6 +576,17 @@ class App:
             SHOW_FLAG.unlink(missing_ok=True)
             self.show_window()
         self.read_new_chat()
+        self.show_update_bar()
+        try:
+            mtime = CONFIG.stat().st_mtime
+        except OSError:
+            mtime = self.config_mtime
+        if mtime != self.config_mtime:  # zapis w kreatorze ustawien albo w edytorze
+            self.config_mtime = mtime
+            self.cfg = load_config()
+            self.opts = self.cfg.get("app", {})
+            self.add_note(self.t["config_changed"])
+            self.restart_listener()
         self.ticks += 1
         if self.ticks % 3 == 1:  # agenci mniej wiecej co sekunde
             self.refresh_agents()
@@ -554,7 +682,9 @@ class App:
         else:
             self.quit()
 
-    def quit(self, ask=True):
+    def quit(self, ask=True, install_now=False):
+        """install_now: po zamknieciu instaluje pobrana wersje i uruchamia Achaje ponownie.
+        Bez tego pobrana wersja instaluje sie przy zwyklym zamknieciu (update_install_on_quit)."""
         from tkinter import messagebox
         if ask and not messagebox.askyesno("Achaja", self.t["quit_ask"], parent=self.root):
             return
@@ -571,6 +701,8 @@ class App:
         if self.tray:
             self.tray.stop()
         self.root.destroy()
+        if self.update_path and (install_now or self.opts.get("update_install_on_quit", True)):
+            update.run_installer(self.update_path, relaunch=install_now)
 
     def run(self):
         self.root.mainloop()

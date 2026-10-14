@@ -1,6 +1,8 @@
 name: Installer
 
-# Tag v* -> buduje AchajaSetup-<wersja>.exe i dołącza go do wydania na GitHubie.
+# Tag v* -> buduje Achaja.exe i AchajaSetup-<wersja>.exe i dołącza instalator do wydania na GitHubie.
+# Wydanie: setup\release.ps1 -Version X.Y.Z (podnosi wersję, robi commit i tag, wypycha).
+# Zainstalowane Achaje sprawdzają najnowsze wydanie i same pobierają AchajaSetup-*.exe.
 # Ręcznie (Actions -> Installer -> Run workflow) -> instalator do pobrania jako artefakt.
 on:
   push:
@@ -25,6 +27,7 @@ jobs:
         shell: pwsh
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME.TrimStart("v") } else { "0.0.0-dev" }
+          if ($env:GITHUB_REF_TYPE -eq "tag" -and $version -notmatch '^\d+\.\d+\.\d+$') { throw "Tag musi wyglądać jak v1.2.3 (jest: $env:GITHUB_REF_NAME)." }
           ./setup/build-installer.ps1 -Version $version -Iscc "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
       - uses: actions/upload-artifact@v4

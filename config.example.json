@@ -31,7 +31,11 @@
     "_show_console_on_prompt": "Gdy Claude pyta o zgodę, konsola pokazuje się sama i chowa po odpowiedzi. / Show the console while Claude waits for a permission answer.",
     "tray": true,
     "close_to_tray": true,
-    "restart_closed_session": true
+    "restart_closed_session": true,
+    "update_check": true,
+    "update_auto_download": true,
+    "update_install_on_quit": true,
+    "_update": "Nowe wydania z GitHuba pobierają się w tle i instalują przy zamknięciu Achai (albo przyciskiem 'Zainstaluj teraz'). / New GitHub releases download in the background and install when Achaja quits."
   },
 
   "achaja": {

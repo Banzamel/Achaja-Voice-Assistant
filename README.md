@@ -30,7 +30,7 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 
 ### The Achaja window
 
-Achaja starts as a normal Windows program (`app.py`, run by `pythonw` — no console windows):
+Achaja starts as a normal Windows program — **`Achaja.exe`** (it runs `app.py` from the bundled environment; no console windows). `Achaja.exe --settings` opens the settings wizard.
 
 - **Conversation** — your prompts and Achaja's answers (the spoken `[GŁOS]` part marked ♪), filled by the session hooks; type into the box and press Enter to send a message without speaking.
 - **Agents** — every project agent with live progress and its final report, plus *Stop agent*. Agent runs no longer open their own console windows.
@@ -40,7 +40,10 @@ Achaja starts as a normal Windows program (`app.py`, run by `pythonw` — no con
 - Closing the window keeps Achaja in the notification area (tray icon: show, talk, pause, quit); *Quit* also closes the hidden session. If the session dies, it restarts and continues the same conversation.
 - Keys and screen reads go to the hidden console from inside the app process (no helper Python process every second), so the listener reacts faster and uses less CPU.
 
-`start-achaja.cmd` still runs the old console mode (listener window + visible Claude window), handy for troubleshooting. Settings for the window live under `app` in `config.json` (`hide_console`, `show_console_on_prompt`, `tray`, `close_to_tray`, `restart_closed_session`).
+- **Updates** — Achaja checks GitHub Releases (20 s after start, then every 6 hours, or *Achaja → Check for updates*), downloads a newer `AchajaSetup-<version>.exe` in the background (size and SHA-256 checked) and installs it **when you quit Achaja**, or right away with *Install now* (then it restarts itself). The update keeps your modules, settings and data. Voice: "check for updates", "update yourself" (Achaja asks first). Git checkouts only get a notice — update them with `git pull`.
+- **Settings** — *Achaja → Settings…* opens the step-by-step wizard, *Edit the configuration file* opens `config.json` in Notepad; saving either one restarts the listener with the new settings.
+
+`start-achaja.cmd` still runs the old console mode (listener window + visible Claude window), handy for troubleshooting. Settings for the window live under `app` in `config.json` (`hide_console`, `show_console_on_prompt`, `tray`, `close_to_tray`, `restart_closed_session`, `update_check`, `update_auto_download`, `update_install_on_quit`).
 
 ## Features
 
@@ -89,7 +92,7 @@ Then:
 
 1. Change settings any time: Start menu → *Achaja – settings*, or `.venv\Scripts\python.exe setup\configure.py` (or edit `config.json` directly).
 2. List audio device names: `.venv\Scripts\python.exe .claude\scripts\listener.py --devices`.
-3. Start Achaja from the Start menu, or run `.venv\Scripts\pythonw.exe .claude\scripts\app.py` (add `--continue` to resume the last conversation). One window opens; the Claude Code session runs hidden. `start-achaja.cmd` is the console mode with two visible windows.
+3. Start `Achaja.exe` (built by `install.ps1`; or `.venv\Scripts\pythonw.exe .claude\scripts\app.py`; add `--continue` to resume the last conversation). One window opens; the Claude Code session runs hidden. `start-achaja.cmd` is the console mode with two visible windows.
 
 ### Language
 
@@ -212,4 +215,15 @@ Pull requests welcome: other operating systems, other speech engines, new voice 
 
 ## Building the installer
 
-`powershell -ExecutionPolicy Bypass -File setup\build-installer.ps1 -Version 0.3.0` puts `AchajaSetup-0.3.0.exe` into `dist\`. It uses Inno Setup's `ISCC.exe` if installed, otherwise the `amake/innosetup` Docker image. Pushing a `v*` tag builds it in GitHub Actions and attaches it to the release.
+`powershell -ExecutionPolicy Bypass -File setup\build-installer.ps1 -Version 0.3.0` builds `Achaja.exe` (C# launcher, compiled with the .NET Framework compiler that ships with Windows) and puts `AchajaSetup-0.3.0.exe` into `dist\`. It uses Inno Setup's `ISCC.exe` if installed, otherwise the `amake/innosetup` Docker image. `setup\build-launcher.ps1` builds only `Achaja.exe`.
+
+### Publishing a release
+
+```powershell
+git checkout main
+git pull
+powershell -ExecutionPolicy Bypass -File setup\release.ps1 -Version 0.5.0 -DryRun   # shows what it will do
+powershell -ExecutionPolicy Bypass -File setup\release.ps1 -Version 0.5.0
+```
+
+The script bumps `__version__`, commits "Wersja 0.5.0", tags `v0.5.0` and pushes both. The tag starts the *Installer* workflow in GitHub Actions, which builds `Achaja.exe` and `AchajaSetup-0.5.0.exe` and attaches the installer to a new release with generated notes; installed copies of Achaja find it on their next check. The same by hand: bump `__version__` in `.claude/scripts/common.py`, commit, then `git tag -a v0.5.0 -m "Achaja 0.5.0"` and `git push origin main v0.5.0`.
