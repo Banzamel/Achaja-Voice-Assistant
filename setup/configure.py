@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / ".claude" / "scripts"))
 import common  # noqa: E402  (tworzy state/, ustawia UTF-8)
 import mail  # noqa: E402
+import theme  # noqa: E402
 
 CONFIG = ROOT / "config.json"
 EXAMPLE = ROOT / "config.example.json"
@@ -32,6 +33,7 @@ MODULES = ("voice", "agents", "mail", "ha")
 OUTPUT_NAMES = {"pl": ("słuchawki", "głośnik"), "en": ("headphones", "speaker")}
 MAIL_KEYS = ("important_hint", "quiet_hours", "delete_after_days")
 APP_FLAGS = ("update_check", "update_install_on_quit", "close_to_tray", "show_console_on_prompt")
+THEMES = ("auto", "light", "dark")
 
 
 def load_raw():
@@ -82,6 +84,7 @@ def state_for_form(modules):
         "language": lang,
         "achaja": cfg.get("achaja", {}),
         "app": {k: cfg.get("app", {}).get(k, True) for k in APP_FLAGS},
+        "theme": cfg.get("app", {}).get("theme", "auto"),
         "voice": {
             "microphone": cfg.get("wake", {}).get("microphone", ""),
             "local_device": (local or {}).get("device", ""),
@@ -122,6 +125,8 @@ def apply_form(data, modules):
         cfg.setdefault("achaja", {}).update({k: v for k, v in data["achaja"].items() if v})
     if data.get("app"):
         cfg.setdefault("app", {}).update({k: bool(v) for k, v in data["app"].items() if k in APP_FLAGS})
+    if data.get("theme") in THEMES:
+        cfg.setdefault("app", {})["theme"] = data["theme"]
 
     if "voice" in modules:
         v = data["voice"]
@@ -247,7 +252,8 @@ def restart_mail(cfg):
 
 TEXT = {
     "pl": {
-        "title": "Achaja — ustawienia", "back": "< Wstecz", "next": "Dalej >", "save": "Zapisz", "cancel": "Anuluj",
+        "title": "Achaja — ustawienia", "back": "Wstecz", "next": "Dalej", "save": "Zapisz", "cancel": "Anuluj",
+        "theme": "Wygląd okien", "theme_auto": "jak w Windows", "theme_light": "jasny", "theme_dark": "ciemny",
         "step": "Krok {} z {}",
         "general": "Ogólne", "general_sub": "Język asystentki oraz model, na którym pracuje Achaja.",
         "language": "Język", "model": "Model Achai", "effort": "Wysiłek (szybkość / dokładność)",
@@ -281,7 +287,8 @@ TEXT = {
         "sum_mic": "mikrofon: {}", "sum_out": "wyjście: {}", "sum_cast": "głośnik: {}", "off": "wyłączony",
     },
     "en": {
-        "title": "Achaja — settings", "back": "< Back", "next": "Next >", "save": "Save", "cancel": "Cancel",
+        "title": "Achaja — settings", "back": "Back", "next": "Next", "save": "Save", "cancel": "Cancel",
+        "theme": "Window theme", "theme_auto": "same as Windows", "theme_light": "light", "theme_dark": "dark",
         "step": "Step {} of {}",
         "general": "General", "general_sub": "The assistant's language and the model Achaja runs on.",
         "language": "Language", "model": "Achaja model", "effort": "Effort (speed / accuracy)",
@@ -315,7 +322,6 @@ TEXT = {
         "sum_mic": "microphone: {}", "sum_out": "output: {}", "sum_cast": "speaker: {}", "off": "off",
     },
 }
-ACCENT = "#6c4cd4"
 
 
 class Wizard:
@@ -331,46 +337,44 @@ class Wizard:
         self.saved = False
 
         self.root = root = tk.Tk()
+        root.withdraw()
         root.title(self.t["title"])
-        root.geometry("700x540")
-        root.minsize(620, 500)
+        root.geometry("740x600")
+        root.minsize(640, 540)
         icon = ROOT / "setup" / "assets" / "achaja.ico"
         if icon.exists():
             root.iconbitmap(str(icon))
-        style = ttk.Style()
-        if "vista" in style.theme_names():
-            style.theme_use("vista")
-        style.configure("Head.TFrame", background="white")
-        style.configure("Head.TLabel", background="white")
-        style.configure("Title.TLabel", background="white", font=("Segoe UI", 13, "bold"))
-        style.configure("Sub.TLabel", background="white", foreground="#555", font=("Segoe UI", 9))
-        style.configure("Step.TLabel", foreground="#777")
+        self.theme = theme.Theme(root, self.state["theme"])
+        px = self.theme.px
 
-        head = ttk.Frame(root, style="Head.TFrame", padding=(18, 12))
+        head = ttk.Frame(root, padding=(px(24), px(18), px(24), px(6)))
         head.pack(fill="x")
         logo = ROOT / "setup" / "assets" / "achaja.png"
         if logo.exists():
             img = tk.PhotoImage(file=str(logo)).subsample(5)
             self._logo = img
-            ttk.Label(head, image=img, style="Head.TLabel").pack(side="right")
+            ttk.Label(head, image=img).pack(side="right", anchor="n")
+        self.step_lbl = ttk.Label(head, style="Section.TLabel")
+        self.step_lbl.pack(anchor="w")
         self.title_lbl = ttk.Label(head, style="Title.TLabel")
-        self.title_lbl.pack(anchor="w")
-        self.sub_lbl = ttk.Label(head, style="Sub.TLabel", wraplength=560, justify="left")
-        self.sub_lbl.pack(anchor="w", pady=(2, 0))
-        ttk.Separator(root).pack(fill="x")
+        self.title_lbl.pack(anchor="w", pady=(px(2), 0))
+        self.sub_lbl = ttk.Label(head, style="Sub.TLabel", wraplength=px(560), justify="left")
+        self.sub_lbl.pack(anchor="w", pady=(px(2), 0))
+        # pasek postepu krokow
+        self.progress = tk.Canvas(root, height=px(4), highlightthickness=0, borderwidth=0)
+        self.progress.pack(fill="x", padx=px(24), pady=(px(10), 0))
+        self.progress.bind("<Configure>", lambda e: self.draw_progress())
 
-        self.body = ttk.Frame(root, padding=(22, 16))
-        self.body.pack(fill="both", expand=True)
-        ttk.Separator(root).pack(fill="x")
-        nav = ttk.Frame(root, padding=(14, 10))
-        nav.pack(fill="x")
-        self.step_lbl = ttk.Label(nav, style="Step.TLabel")
-        self.step_lbl.pack(side="left")
-        ttk.Button(nav, text=self.t["cancel"], command=root.destroy).pack(side="right")
-        self.next_btn = ttk.Button(nav, text=self.t["next"], command=self.next)
-        self.next_btn.pack(side="right", padx=(0, 8))
+        nav = ttk.Frame(root, padding=(px(24), px(12), px(24), px(18)))
+        nav.pack(side="bottom", fill="x")
+        self.next_btn = ttk.Button(nav, text=self.t["next"], style="Accent.TButton", command=self.next)
+        self.next_btn.pack(side="right")
         self.back_btn = ttk.Button(nav, text=self.t["back"], command=self.back)
-        self.back_btn.pack(side="right", padx=(0, 4))
+        self.back_btn.pack(side="right", padx=(0, px(8)))
+        ttk.Button(nav, text=self.t["cancel"], style="Ghost.TButton", command=root.destroy).pack(side="left")
+
+        self.body = ttk.Frame(root, padding=(px(24), px(16), px(24), 0))
+        self.body.pack(fill="both", expand=True)
 
         self.vars()
         self.pages = [("general", self.page_general)]
@@ -385,6 +389,8 @@ class Wizard:
         self.pages.append(("summary", self.page_summary))
         self.index = 0
         self.show()
+        root.deiconify()
+        root.after(50, lambda: self.theme.titlebar(root))
 
     # --- dane ---
     def vars(self):
@@ -414,6 +420,9 @@ class Wizard:
         self.announce = {c: tk.BooleanVar(value=c in m["announce"]) for c in ("important", "threat", "ad", "spam")}
         self.app_flags = {k: tk.BooleanVar(value=s["app"][k]) for k in APP_FLAGS}
         self.hint_text = m.get("important_hint") or ""
+        names = {k: self.t["theme_" + k] for k in THEMES}
+        self.theme_names = names
+        self.v["theme"] = tk.StringVar(value=names.get(s["theme"], names["auto"]))
         self.roots = list(s["agents"]["project_roots"])
 
     def match(self, wanted, names):
@@ -433,10 +442,28 @@ class Wizard:
         self.sub_lbl.configure(text=self.t[f"{key}_sub"])
         self.step_lbl.configure(text=self.t["step"].format(self.index + 1, len(self.pages)))
         self.back_btn.state(["disabled"] if self.index == 0 else ["!disabled"])
-        self.next_btn.configure(text=self.t["save"] if key == "summary" else self.t["next"])
+        self.next_btn.configure(text=self.t["save"] if key == "summary" else self.t["next"] + "  ›")
+        self.draw_progress()
         page = self.ttk.Frame(self.body)  # swieza ramka: ustawienia siatki nie przechodza miedzy stronami
         page.pack(fill="both", expand=True)
         build(page)
+
+    def draw_progress(self):
+        c, p = self.progress, self.theme.p
+        w, h = c.winfo_width(), int(c["height"])
+        c.configure(background=p["bg"])
+        c.delete("all")
+        done = w * (self.index + 1) / len(self.pages)
+        c.create_rectangle(0, 0, w, h, fill=p["border"], outline="")
+        c.create_rectangle(0, 0, done, h, fill=p["accent"], outline="")
+
+    def theme_name(self):
+        return next((k for k, n in self.theme_names.items() if n == self.v["theme"].get()), "auto")
+
+    def change_theme(self, *_):
+        self.collect_page()
+        if self.theme.apply(self.theme_name()):
+            self.show()  # zwykle widzety tk na stronie dostaja nowe kolory
 
     def collect_page(self):
         if hasattr(self, "hint_widget") and self.hint_widget.winfo_exists():
@@ -457,13 +484,24 @@ class Wizard:
     # --- pomocnicze ---
     def field(self, parent, label, var, row, width=40, show=None, values=None, col=0):
         ttk = self.ttk
-        ttk.Label(parent, text=label).grid(row=row, column=col, sticky="w", pady=(0, 2))
+        ttk.Label(parent, text=label, style="Section.TLabel").grid(row=row, column=col, sticky="w", pady=(0, 3))
         if values is not None:
             w = ttk.Combobox(parent, textvariable=var, values=values, width=width)
         else:
             w = ttk.Entry(parent, textvariable=var, width=width, show=show)
-        w.grid(row=row + 1, column=col, sticky="we", pady=(0, 10), padx=(0, 12))
+        w.grid(row=row + 1, column=col, sticky="we", pady=(0, 12), padx=(0, 12))
         return w
+
+    def text_box(self, parent, height, width=None, font_size=10):
+        """Wielowierszowe pole tekstowe w zaokraglonej ramce (wyglada jak pola ttk)."""
+        frame = self.ttk.Frame(parent, style="Input.TFrame", padding=self.theme.px(6))
+        kw = {"width": width} if width else {}
+        text = self.tk.Text(frame, height=height, wrap="word", font=(theme.FONT, font_size), **kw)
+        self.theme.text(text)
+        text.pack(fill="both", expand=True)
+        text.bind("<FocusIn>", lambda e: frame.state(["focus"]))
+        text.bind("<FocusOut>", lambda e: frame.state(["!focus"]))
+        return frame, text
 
     def run_bg(self, work, done):
         """Test/wyszukiwanie w tle, zeby okno nie zamarzalo."""
@@ -491,13 +529,17 @@ class Wizard:
 
     # --- strony ---
     def page_general(self, p):
+        px = self.theme.px
         p.columnconfigure(0, weight=1)
         self.field(p, self.t["language"], self.v["language"], 0, values=["pl", "en"], width=20)
         self.field(p, self.t["model"], self.v["model"], 2, values=["sonnet", "opus", "haiku"], width=20)
         self.field(p, self.t["effort"], self.v["effort"], 4, values=["low", "medium", "high"], width=20)
+        box = self.field(p, self.t["theme"], self.v["theme"], 6, values=list(self.theme_names.values()), width=20)
+        box.state(["readonly"])
+        box.bind("<<ComboboxSelected>>", self.change_theme)
         for i, key in enumerate(APP_FLAGS):  # okno programu: aktualizacje, zasobnik, konsola Claude
             self.ttk.Checkbutton(p, text=self.t["app_" + key], variable=self.app_flags[key]).grid(
-                row=6 + i, column=0, sticky="w", pady=(0, 4))
+                row=8 + i, column=0, sticky="w", pady=(px(4) if i == 0 else 0, 2))
 
     def page_voice(self, p):
         ttk, dev = self.ttk, self.state["devices"]
@@ -523,7 +565,7 @@ class Wizard:
         self.field(inner, self.t["cast_name"], self.v["cast_name"], 0)
         self.field(inner, self.t["cast_host"], self.v["cast_host"], 0, col=1)
         ttk.Checkbutton(inner, text=self.t["cast_default"], variable=self.v["cast_default"]).grid(row=2, column=0, sticky="w")
-        status = ttk.Label(inner, foreground="#555")
+        status = ttk.Label(inner, style="Muted.TLabel")
         status.grid(row=3, column=1, sticky="w")
 
         def find():
@@ -549,8 +591,11 @@ class Wizard:
         from tkinter import filedialog
         p.columnconfigure(0, weight=1)
         p.rowconfigure(0, weight=1)
-        lb = tk.Listbox(p, height=10, activestyle="none", borderwidth=1, relief="solid", highlightthickness=0)
-        lb.grid(row=0, column=0, sticky="nsew")
+        card = ttk.Frame(p, style="Card.TFrame", padding=self.theme.px(8))
+        card.grid(row=0, column=0, sticky="nsew")
+        lb = tk.Listbox(card, height=10, selectmode="extended")
+        self.theme.listbox(lb)
+        lb.pack(fill="both", expand=True)
         for r in self.roots:
             lb.insert("end", r)
         side = ttk.Frame(p)
@@ -568,7 +613,7 @@ class Wizard:
             for i in reversed(lb.curselection()):
                 self.roots.pop(i)
                 lb.delete(i)
-        ttk.Button(side, text=self.t["add_folder"], command=add).pack(fill="x")
+        ttk.Button(side, text=self.t["add_folder"], style="Accent.TButton", command=add).pack(fill="x")
         ttk.Button(side, text=self.t["remove"], command=remove).pack(fill="x", pady=(6, 0))
 
     def page_mail(self, p):
@@ -581,7 +626,7 @@ class Wizard:
             tree.heading(col, text=self.t[key])
             tree.column(col, width=w)
         tree.grid(row=1, column=0, sticky="nsew")
-        status = ttk.Label(p, foreground="#555", wraplength=600, justify="left")
+        status = ttk.Label(p, style="Muted.TLabel", wraplength=600, justify="left")
         status.grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
         def refresh():
@@ -632,7 +677,8 @@ class Wizard:
         win.title(self.t["acc_title"])
         win.transient(self.root)
         win.resizable(False, False)
-        frm = ttk.Frame(win, padding=16)
+        win.configure(background=self.theme.p["bg"])
+        frm = ttk.Frame(win, padding=self.theme.px(20))
         frm.pack(fill="both", expand=True)
         frm.columnconfigure(0, weight=1)
         frm.columnconfigure(1, weight=1)
@@ -648,11 +694,11 @@ class Wizard:
         self.field(frm, self.t["acc_port"], v["port"], 4, width=8, col=1)
         v["security"].trace_add("write", lambda *_: v["port"].set("993" if v["security"].get() == "ssl" else "143"))
         self.field(frm, self.t["acc_display"], v["display_name"], 6)
-        ttk.Label(frm, text=self.t["acc_sig"]).grid(row=8, column=0, sticky="w")
-        sig = tk.Text(frm, height=3, width=60, font=("Segoe UI", 9), relief="solid", borderwidth=1)
-        sig.grid(row=9, column=0, columnspan=2, sticky="we", pady=(0, 10))
+        ttk.Label(frm, text=self.t["acc_sig"], style="Section.TLabel").grid(row=8, column=0, sticky="w", pady=(0, 3))
+        box, sig = self.text_box(frm, 3, width=60, font_size=9)
+        box.grid(row=9, column=0, columnspan=2, sticky="we", pady=(0, 10))
         sig.insert("1.0", acc.get("signature") or "")
-        status = ttk.Label(frm, foreground="#555", wraplength=520, justify="left")
+        status = ttk.Label(frm, style="Muted.TLabel", wraplength=520, justify="left")
         status.grid(row=10, column=0, columnspan=2, sticky="w")
         result = {}
 
@@ -683,8 +729,9 @@ class Wizard:
         btns = ttk.Frame(frm)
         btns.grid(row=11, column=0, columnspan=2, sticky="e", pady=(12, 0))
         ttk.Button(btns, text=self.t["test"], command=test).pack(side="left", padx=(0, 16))
-        ttk.Button(btns, text=self.t["ok"], command=ok).pack(side="left", padx=(0, 6))
+        ttk.Button(btns, text=self.t["ok"], style="Accent.TButton", command=ok).pack(side="left", padx=(0, 6))
         ttk.Button(btns, text=self.t["cancel"], command=win.destroy).pack(side="left")
+        self.theme.titlebar(win)
         win.grab_set()
         self.root.wait_window(win)
         return result.get("acc")
@@ -693,9 +740,9 @@ class Wizard:
         ttk, tk = self.ttk, self.tk
         p.columnconfigure(0, weight=1)
         p.columnconfigure(1, weight=1)
-        ttk.Label(p, text=self.t["hint"]).grid(row=0, column=0, columnspan=2, sticky="w")
-        self.hint_widget = tk.Text(p, height=3, font=("Segoe UI", 9), relief="solid", borderwidth=1, wrap="word")
-        self.hint_widget.grid(row=1, column=0, columnspan=2, sticky="we", pady=(2, 10))
+        ttk.Label(p, text=self.t["hint"], style="Section.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
+        box, self.hint_widget = self.text_box(p, 3)
+        box.grid(row=1, column=0, columnspan=2, sticky="we", pady=(3, 12))
         self.hint_widget.insert("1.0", self.hint_text)
         self.field(p, self.t["important"], self.v["important"], 2)
         self.field(p, self.t["ignored"], self.v["ignored"], 2, col=1)
@@ -704,7 +751,7 @@ class Wizard:
         self.field(p, self.t["delete"], self.v["delete"], 6, width=8)
         row = ttk.Frame(p)
         row.grid(row=8, column=0, columnspan=2, sticky="w", pady=(4, 0))
-        ttk.Label(row, text=self.t["announce"]).pack(side="left", padx=(0, 8))
+        ttk.Label(row, text=self.t["announce"], style="Section.TLabel").pack(side="left", padx=(0, 8))
         for c in ("important", "threat", "ad", "spam"):
             ttk.Checkbutton(row, text=self.t[f"c_{c}"], variable=self.announce[c]).pack(side="left", padx=(0, 8))
 
@@ -716,7 +763,7 @@ class Wizard:
         tok = self.field(p, self.t["ha_token"], self.v["ha_token"], 3, show="•")
         if self.state["ha"]["has_token"]:
             tok.configure()
-        status = ttk.Label(p, foreground="#555")
+        status = ttk.Label(p, style="Muted.TLabel")
         status.grid(row=6, column=0, sticky="w", pady=(6, 0))
 
         def test():
@@ -742,9 +789,15 @@ class Wizard:
                 lines.append(self.t["sum_mail_off"])
         if "ha" in self.modules:
             lines.append(self.t["sum_ha"].format(self.v["ha_url"].get() if self.v["ha_on"].get() else self.t["off"]))
+        card = ttk.Frame(p, style="Card.TFrame", padding=(self.theme.px(16), self.theme.px(12)))
+        card.pack(fill="x")
         for line in lines:
-            ttk.Label(p, text="•  " + line, wraplength=620, justify="left").pack(anchor="w", pady=2)
-        self.save_status = ttk.Label(p, foreground="#555")
+            row = ttk.Frame(card, style="Plain.TFrame")
+            row.pack(anchor="w", fill="x", pady=2)
+            ttk.Label(row, text="✓", style="Card.TLabel", foreground=self.theme.p["accent"]).pack(side="left", anchor="n")
+            ttk.Label(row, text=line, style="Card.TLabel", wraplength=self.theme.px(580), justify="left").pack(
+                side="left", padx=(self.theme.px(8), 0))
+        self.save_status = ttk.Label(p, style="Muted.TLabel")
         self.save_status.pack(anchor="w", pady=(14, 0))
 
     # --- zapis ---
@@ -754,6 +807,7 @@ class Wizard:
             "language": v["language"].get(),
             "achaja": {"model": v["model"].get(), "effort": v["effort"].get()},
             "app": {k: b.get() for k, b in self.app_flags.items()},
+            "theme": self.theme_name(),
             "voice": {"microphone": self.device(v["mic"].get()), "local_device": self.device(v["out"].get()),
                       "rate": v["rate"].get(), "default": "cast" if v["cast_default"].get() else "local",
                       "cast": {"enabled": v["cast_on"].get(), "name": v["cast_name"].get(), "host": v["cast_host"].get()}},

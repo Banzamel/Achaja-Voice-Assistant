@@ -32,18 +32,19 @@ Keystrokes are written straight into the Claude Code console input buffer (`Writ
 
 Achaja starts as a normal Windows program — **`Achaja.exe`** (it runs `app.py` from the bundled environment; no console windows). `Achaja.exe --settings` opens the settings wizard.
 
-- **Conversation** — your prompts and Achaja's answers (the spoken `[GŁOS]` part marked ♪), filled by the session hooks; type into the box and press Enter to send a message without speaking.
+- **Conversation** — chat bubbles with your prompts and Achaja's answers (the spoken `[GŁOS]` part marked ♪; right-click a bubble to copy it), filled by the session hooks; type into the box and press Enter to send a message without speaking.
 - **Agents** — every project agent with live progress and its final report, plus *Stop agent*. Agent runs no longer open their own console windows.
 - **Log** — what the listener hears and does.
-- A status line (listening, recording, working, speaking, waiting for approval), a **Talk** button (start / send a recording without the wake word) and **Pause listening**.
+- A status pill with a coloured dot that pulses while Achaja records, works or speaks (listening, recording, working, speaking, waiting for approval), a **Talk** button (start / send a recording without the wake word) and **Pause listening**. The ☰ button (or F10) opens the Achaja menu.
+- **Light and dark theme** — follows the Windows app mode by default (switches live); pick it in the settings wizard (*General → Window theme*) or set `app.theme` to `auto`, `light` or `dark`.
 - The Claude Code session runs in a **hidden console**. When Claude asks for a permission it shows up by itself and hides again after the answer; *Achaja → Show / hide the Claude console* toggles it any time.
 - Closing the window keeps Achaja in the notification area (tray icon: show, talk, pause, quit); *Quit* also closes the hidden session. If the session dies, it restarts and continues the same conversation.
 - Keys and screen reads go to the hidden console from inside the app process (no helper Python process every second), so the listener reacts faster and uses less CPU.
 
-- **Updates** — Achaja checks GitHub Releases (20 s after start, then every 6 hours, or *Achaja → Check for updates*), downloads a newer `AchajaSetup-<version>.exe` in the background (size and SHA-256 checked) and installs it **when you quit Achaja**, or right away with *Install now* (then it restarts itself). The update keeps your modules, settings and data. Voice: "check for updates", "update yourself" (Achaja asks first). Git checkouts only get a notice — update them with `git pull`.
+- **Updates** — Achaja checks GitHub Releases (20 s after start, then every 15 minutes, or *Achaja → Check for updates*), downloads a newer `AchajaSetup-<version>.exe` in the background (size and SHA-256 checked) and installs it **when you quit Achaja**, or right away with *Install now* (then it restarts itself). The update keeps your modules, settings and data. Voice: "check for updates", "update yourself" (Achaja asks first). Git checkouts only get a notice — update them with `git pull`.
 - **Settings** — *Achaja → Settings…* opens the step-by-step wizard, *Edit the configuration file* opens `config.json` in Notepad; saving either one restarts the listener with the new settings.
 
-`start-achaja.cmd` still runs the old console mode (listener window + visible Claude window), handy for troubleshooting. Settings for the window live under `app` in `config.json` (`hide_console`, `show_console_on_prompt`, `tray`, `close_to_tray`, `restart_closed_session`, `update_check`, `update_auto_download`, `update_install_on_quit`).
+`start-achaja.cmd` still runs the old console mode (listener window + visible Claude window), handy for troubleshooting. Settings for the window live under `app` in `config.json` (`hide_console`, `show_console_on_prompt`, `tray`, `close_to_tray`, `restart_closed_session`, `update_check`, `update_auto_download`, `update_install_on_quit`, `theme`).
 
 ## Features
 
